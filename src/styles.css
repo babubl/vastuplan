@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Manrope Variable", Manrope, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-paper: #F3F4F1;
+  --color-ink: #1D2733;
+  --color-body: #3F4B57;
+  --color-muted: #6C7782;
+  --color-line: #D9DDD8;
+  --color-indigo: #2E3A87;
+  --color-indigo-700: #232C6B;
+  --color-indigo-50: #ECEEF8;
+  --color-turmeric: #E0A526;
+  --color-neem: #3E7A5A;
+  --color-chilli: #B43C2E;
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-paper text-body font-sans antialiased; font-size: 16px; line-height: 1.6; font-feature-settings: "tnum" 0; }
+  h1, h2, h3 { @apply text-ink; letter-spacing: -0.025em; text-wrap: balance; }
+  h1 { font-weight: 800; }
+  h2, h3 { font-weight: 700; }
+  :focus-visible { outline: 2px solid var(--color-indigo); outline-offset: 2px; border-radius: 4px; }
+  svg [role="button"]:focus { outline: none; }
+  ::selection { background: #D6DAF0; }
+  input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+}
+
+@utility num { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; }
+  .print-page { break-after: page; }
+}
