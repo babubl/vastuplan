@@ -1,0 +1,258 @@
+/**
+ * Renders a floor plan as an SVG string, drawn in feet (1 unit = 1 ft) like an architect's drawing:
+ * thick outer walls, thin partitions, door swings, glazed windows, furniture to scale,
+ * dimension chains, a north arrow and the road.
+ */
+import { fmtFt } from "../engine/geometry";
+import { ZONES } from "../engine/vastu";
+import type { FloorPlan, Furniture, HouseDesign, Opening, Rect, Room, RoomType } from "../engine/types";
+
+export interface RenderOptions { furniture?: boolean; vastuGrid?: boolean; dims?: boolean; palette?: Partial<Record<RoomType, string>>; mono?: boolean }
+
+const INK = "#1E1B18";
+const PAPER = "#FBF9F4";
+const FILL: Record<RoomType, string> = {
+  living: "#F1EADF", dining: "#F3EDE3", kitchen: "#F2E3D6", utility: "#E5ECEE", master: "#ECE7DF", bedroom: "#EAE8E3",
+  toilet: "#E1EBEF", dress: "#EEE9E1", pooja: "#F5ECCF", study: "#E9EDE3", stair: "#E9E7E2", parking: "#ECEBE8",
+  store: "#ECE9E3", sitout: "#E7EEDF", lounge: "#F1EADF", balcony: "#E7EEDF", passage: "#F4F0E8",
+};
+
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const n = (v: number) => +v.toFixed(3);
+
+function line(x1: number, y1: number, x2: number, y2: number, stroke: string, w: number, extra = "") {
+  return `<line x1="${n(x1)}" y1="${n(y1)}" x2="${n(x2)}" y2="${n(y2)}" stroke="${stroke}" stroke-width="${w}" ${extra}/>`;
+}
+function rect(r: Rect, attrs: string) { return `<rect x="${n(r.x)}" y="${n(r.y)}" width="${n(r.w)}" height="${n(r.h)}" ${attrs}/>`; }
+
+function door(o: Opening, rooms: Room[]): string {
+  const vertical = Math.abs(o.x1 - o.x2) < 0.01;
+  const len = vertical ? Math.abs(o.y2 - o.y1) : Math.abs(o.x2 - o.x1);
+  let s = vertical ? line(o.x1, o.y1, o.x2, o.y2, PAPER, 0.85) : line(o.x1, o.y1, o.x2, o.y2, PAPER, 0.85);
+  if (o.kind === "opening") return s;
+  const into = rooms.find((r) => r.id === o.into);
+  if (!into) return s;
+  // direction into the room
+  const c = { x: into.rect.x + into.rect.w / 2, y: into.rect.y + into.rect.h / 2 };
+  const dir = vertical ? Math.sign(c.x - o.x1) || 1 : Math.sign(c.y - o.y1) || 1;
+  const hx = o.x1, hy = o.y1; // hinge
+  const leafEnd = vertical ? { x: hx + dir * len, y: hy } : { x: hx, y: hy + dir * len };
+  const free = { x: o.x2, y: o.y2 };
+  const sweep = vertical ? (dir > 0 ? 0 : 1) : (dir > 0 ? 1 : 0);
+  s += line(hx, hy, leafEnd.x, leafEnd.y, INK, o.kind === "main" ? 0.14 : 0.09);
+  s += `<path d="M ${n(leafEnd.x)} ${n(leafEnd.y)} A ${n(len)} ${n(len)} 0 0 ${sweep} ${n(free.x)} ${n(free.y)}" fill="none" stroke="${INK}" stroke-width="0.05" stroke-dasharray="0.25 0.18"/>`;
+  return s;
+}
+
+function windowMark(o: Opening): string {
+  const vertical = Math.abs(o.x1 - o.x2) < 0.01;
+  let s = line(o.x1, o.y1, o.x2, o.y2, PAPER, 0.7);
+  const off = 0.16;
+  if (vertical) { s += line(o.x1 - off, o.y1, o.x2 - off, o.y2, INK, 0.05) + line(o.x1 + off, o.y1, o.x2 + off, o.y2, INK, 0.05) + line(o.x1 - 0.36, o.y1, o.x1 + 0.36, o.y1, INK, 0.06) + line(o.x2 - 0.36, o.y2, o.x2 + 0.36, o.y2, INK, 0.06); }
+  else { s += line(o.x1, o.y1 - off, o.x2, o.y2 - off, INK, 0.05) + line(o.x1, o.y1 + off, o.x2, o.y2 + off, INK, 0.05) + line(o.x1, o.y1 - 0.36, o.x1, o.y1 + 0.36, INK, 0.06) + line(o.x2, o.y2 - 0.36, o.x2, o.y2 + 0.36, INK, 0.06); }
+  if (o.kind === "window") s += vertical ? line(o.x1, o.y1, o.x2, o.y2, INK, 0.03) : line(o.x1, o.y1, o.x2, o.y2, INK, 0.03);
+  return s;
+}
+
+function furnitureSvg(f: Furniture): string {
+  const r = f.rect, st = `fill="#FFFDF8" stroke="#5E554B" stroke-width="0.06"`;
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+  switch (f.kind) {
+    case "bed": {
+      // pillows at the head end
+      const s = f.facing;
+      let p = "";
+      const pw = (s === "N" || s === "S" ? r.w : r.h) / 2 - 0.35;
+      for (const k of [0, 1]) {
+        const pr: Rect = s === "S" ? { x: r.x + 0.25 + k * (pw + 0.2), y: r.y + r.h - 1.3, w: pw, h: 0.95 }
+          : s === "N" ? { x: r.x + 0.25 + k * (pw + 0.2), y: r.y + 0.35, w: pw, h: 0.95 }
+          : s === "E" ? { x: r.x + r.w - 1.3, y: r.y + 0.25 + k * (pw + 0.2), w: 0.95, h: pw }
+          : { x: r.x + 0.35, y: r.y + 0.25 + k * (pw + 0.2), w: 0.95, h: pw };
+        p += rect(pr, `rx="0.2" ${st}`);
+      }
+      const fold: Rect = s === "S" ? { x: r.x, y: r.y + r.h * 0.18, w: r.w, h: 0.01 } : s === "N" ? { x: r.x, y: r.y + r.h * 0.82, w: r.w, h: 0.01 } : s === "E" ? { x: r.x + r.w * 0.18, y: r.y, w: 0.01, h: r.h } : { x: r.x + r.w * 0.82, y: r.y, w: 0.01, h: r.h };
+      return rect(r, `rx="0.25" ${st}`) + p + rect(fold, `fill="none" stroke="#5E554B" stroke-width="0.05"`);
+    }
+    case "sofa": {
+      const back = 0.7;
+      const s = f.facing; // direction the sitter faces
+      const backR: Rect = s === "N" ? { x: r.x, y: r.y + r.h - back, w: r.w, h: back } : s === "S" ? { x: r.x, y: r.y, w: r.w, h: back } : s === "E" ? { x: r.x, y: r.y, w: back, h: r.h } : { x: r.x + r.w - back, y: r.y, w: back, h: r.h };
+      return rect(r, `rx="0.35" ${st}`) + rect(backR, `rx="0.25" ${st}`);
+    }
+    case "dining": {
+      let chairs = "";
+      const horiz = r.w >= r.h;
+      const seats = r.w * r.h > 15 ? 3 : 2;
+      for (let k = 0; k < seats; k++) {
+        if (horiz) {
+          const x = r.x + (r.w / seats) * (k + 0.5) - 0.7;
+          chairs += rect({ x, y: r.y - 1.6, w: 1.4, h: 1.3 }, `rx="0.2" ${st}`) + rect({ x, y: r.y + r.h + 0.3, w: 1.4, h: 1.3 }, `rx="0.2" ${st}`);
+        } else {
+          const y = r.y + (r.h / seats) * (k + 0.5) - 0.7;
+          chairs += rect({ x: r.x - 1.6, y, w: 1.3, h: 1.4 }, `rx="0.2" ${st}`) + rect({ x: r.x + r.w + 0.3, y, w: 1.3, h: 1.4 }, `rx="0.2" ${st}`);
+        }
+      }
+      return chairs + rect(r, `rx="0.3" ${st}`);
+    }
+    case "hob": return rect(r, `fill="#FFFDF8" stroke="#5E554B" stroke-width="0.05"`) + [0.28, 0.72].map((fy) => `<circle cx="${n(cx)}" cy="${n(r.y + r.h * fy)}" r="${n(Math.min(r.w, r.h) * 0.26)}" fill="none" stroke="#5E554B" stroke-width="0.05"/>`).join("");
+    case "sink": return rect(r, `rx="0.25" fill="#EEF3F5" stroke="#5E554B" stroke-width="0.05"`);
+    case "wc": return `<ellipse cx="${n(cx)}" cy="${n(cy)}" rx="${n(r.w / 2.3)}" ry="${n(r.h / 2.3)}" ${st}/>`;
+    case "basin": return `<ellipse cx="${n(cx)}" cy="${n(cy)}" rx="${n(r.w / 2.2)}" ry="${n(r.h / 2.2)}" ${st}/>`;
+    case "shower": return rect(r, `fill="none" stroke="#5E554B" stroke-width="0.05" stroke-dasharray="0.2 0.15"`) + line(r.x, r.y, r.x + r.w, r.y + r.h, "#5E554B", 0.03) + line(r.x + r.w, r.y, r.x, r.y + r.h, "#5E554B", 0.03);
+    case "car": return rect(r, `rx="1" fill="#FFFDF8" stroke="#5E554B" stroke-width="0.07"`) + (r.h > r.w ? rect({ x: r.x + 0.5, y: r.y + r.h * 0.3, w: r.w - 1, h: r.h * 0.35 }, `rx="0.5" fill="none" stroke="#5E554B" stroke-width="0.05"`) : rect({ x: r.x + r.w * 0.3, y: r.y + 0.5, w: r.w * 0.35, h: r.h - 1 }, `rx="0.5" fill="none" stroke="#5E554B" stroke-width="0.05"`));
+    case "stairs": {
+      // Dog-legged stair: two flights along the long side with a landing at the far end.
+      const long = r.h >= r.w;
+      const landing = 3.25;
+      let s = "";
+      const run = (long ? r.h : r.w) - landing;
+      const treads = Math.max(6, Math.round(run / 0.85));
+      if (long) {
+        s += line(r.x + r.w / 2, r.y + landing, r.x + r.w / 2, r.y + r.h, "#5E554B", 0.06) + line(r.x, r.y + landing, r.x + r.w, r.y + landing, "#5E554B", 0.05);
+        for (let k = 1; k < treads; k++) { const y = r.y + landing + (run / treads) * k; s += line(r.x + 0.2, y, r.x + r.w - 0.2, y, "#8A8178", 0.03); }
+        s += `<path d="M ${n(r.x + r.w * 0.25)} ${n(r.y + r.h - 0.6)} L ${n(r.x + r.w * 0.25)} ${n(r.y + 1.6)} L ${n(r.x + r.w * 0.75)} ${n(r.y + 1.6)} L ${n(r.x + r.w * 0.75)} ${n(r.y + r.h - 1.6)}" fill="none" stroke="${INK}" stroke-width="0.06" marker-end="url(#arrow)"/>`;
+      } else {
+        s += line(r.x + landing, r.y + r.h / 2, r.x + r.w, r.y + r.h / 2, "#5E554B", 0.06) + line(r.x + landing, r.y, r.x + landing, r.y + r.h, "#5E554B", 0.05);
+        for (let k = 1; k < treads; k++) { const x = r.x + landing + (run / treads) * k; s += line(x, r.y + 0.2, x, r.y + r.h - 0.2, "#8A8178", 0.03); }
+        s += `<path d="M ${n(r.x + r.w - 0.6)} ${n(r.y + r.h * 0.75)} L ${n(r.x + 1.6)} ${n(r.y + r.h * 0.75)} L ${n(r.x + 1.6)} ${n(r.y + r.h * 0.25)} L ${n(r.x + r.w - 1.6)} ${n(r.y + r.h * 0.25)}" fill="none" stroke="${INK}" stroke-width="0.06" marker-end="url(#arrow)"/>`;
+      }
+      return s;
+    }
+    case "planter": return `<circle cx="${n(cx)}" cy="${n(cy)}" r="${n(r.w / 2)}" fill="#E3ECD9" stroke="#6E8460" stroke-width="0.05"/>`;
+    case "chair": return rect(r, `rx="0.35" ${st}`);
+    case "table": return rect(r, `rx="0.2" ${st}`);
+    case "altar": return rect(r, `fill="#F7E7B5" stroke="#8A6D2B" stroke-width="0.06"`) + `<circle cx="${n(cx)}" cy="${n(cy)}" r="0.3" fill="#C98A1B"/>`;
+    default: return rect(r, `rx="0.1" ${st}`);
+  }
+}
+
+function dimChain(x1: number, y1: number, x2: number, y2: number, label: string, vertical: boolean): string {
+  const tick = 0.45;
+  let s = line(x1, y1, x2, y2, "#6B6259", 0.05);
+  s += vertical ? line(x1 - tick, y1 + tick, x1 + tick, y1 - tick, "#6B6259", 0.07) + line(x2 - tick, y2 + tick, x2 + tick, y2 - tick, "#6B6259", 0.07)
+    : line(x1 - tick, y1 + tick, x1 + tick, y1 - tick, "#6B6259", 0.07) + line(x2 - tick, y2 + tick, x2 + tick, y2 - tick, "#6B6259", 0.07);
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+  s += vertical
+    ? `<text x="${n(mx - 0.5)}" y="${n(my)}" font-size="0.95" fill="#3E3730" text-anchor="middle" transform="rotate(-90 ${n(mx - 0.5)} ${n(my)})">${label}</text>`
+    : `<text x="${n(mx)}" y="${n(my - 0.5)}" font-size="0.95" fill="#3E3730" text-anchor="middle">${label}</text>`;
+  return s;
+}
+
+const SHORT: Record<string, string> = { "Common toilet": "Toilet", "Master bedroom": "Master bed", "Parents' bedroom": "Parents' bed", "Car parking": "Parking", "Family lounge": "Lounge", "Open terrace": "Terrace", Staircase: "Stair", Utility: "Util." };
+const textW = (t: string, fs: number) => t.length * fs * 0.64;
+
+/** The largest label that fits the room: full name, then a short name, then a smaller font. */
+function fitLabel(label: string, width: number, fs: number): { text: string; fs: number } | null {
+  for (const t of [label, SHORT[label] ?? (label.startsWith("Bedroom ") ? label.replace("Bedroom ", "Bed ") : label)]) {
+    if (textW(t, fs) <= width) return { text: t, fs };
+    const smaller = width / (t.length * 0.64);
+    if (smaller >= 0.55) return { text: t, fs: Math.min(fs, smaller) };
+  }
+  return null;
+}
+
+export function renderPlanSvg(d: HouseDesign, floor: FloorPlan, opt: RenderOptions = {}): string {
+  const { plot, footprint: fp } = d;
+  const facing = d.input.facing;
+  const pad = 7, road = 6;
+  const vb = { x: plot.x - pad - (facing === "W" ? road : 0), y: plot.y - pad - (facing === "N" ? road : 0), w: plot.w + 2 * pad + (facing === "E" || facing === "W" ? road : 0), h: plot.h + 2 * pad + (facing === "N" || facing === "S" ? road : 0) };
+  const p: string[] = [];
+  p.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n(vb.x)} ${n(vb.y)} ${n(vb.w)} ${n(vb.h)}" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">`);
+  p.push(`<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>
+    <pattern id="hatch" width="0.6" height="0.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="0.6" stroke="#C9C1B4" stroke-width="0.08"/></pattern></defs>`);
+  p.push(rect(vb, `fill="${PAPER}"`));
+
+  // Road
+  const roadR: Rect = facing === "N" ? { x: vb.x, y: plot.y - pad - road + 1, w: vb.w, h: road - 1 } : facing === "S" ? { x: vb.x, y: plot.y + plot.h + pad, w: vb.w, h: road - 1 } : facing === "E" ? { x: plot.x + plot.w + pad, y: vb.y, w: road - 1, h: vb.h } : { x: plot.x - pad - road + 1, y: vb.y, w: road - 1, h: vb.h };
+  p.push(rect(roadR, `fill="#E7E3DA"`));
+  const rc = { x: roadR.x + roadR.w / 2, y: roadR.y + roadR.h / 2 };
+  p.push(`<text x="${n(rc.x)}" y="${n(rc.y + 0.4)}" font-size="1.2" letter-spacing="0.6" fill="#7A7065" text-anchor="middle" ${facing === "E" || facing === "W" ? `transform="rotate(-90 ${n(rc.x)} ${n(rc.y)})"` : ""}>ROAD</text>`);
+
+  // Plot boundary and open space
+  p.push(rect(plot, `fill="#F1F0E8" stroke="#8C8377" stroke-width="0.12" stroke-dasharray="0.8 0.4"`));
+  p.push(`<text x="${n(plot.x + 0.6)}" y="${n(plot.y + plot.h - 0.7)}" font-size="0.85" fill="#8C8377">Plot ${fmtFt(d.input.plotWidth)} × ${fmtFt(d.input.plotDepth)}</text>`);
+
+  // Vastu grid
+  if (opt.vastuGrid) {
+    const zones = ["NW", "N", "NE", "W", "C", "E", "SW", "S", "SE"] as const;
+    zones.forEach((z, k) => {
+      const zr: Rect = { x: fp.x + (fp.w / 3) * (k % 3), y: fp.y + (fp.h / 3) * Math.floor(k / 3), w: fp.w / 3, h: fp.h / 3 };
+      p.push(rect(zr, `fill="${ZONES[z].colours[0].hex}" fill-opacity="0.45" stroke="#B4532A" stroke-width="0.06" stroke-dasharray="0.4 0.3"`));
+    });
+  }
+
+  // Rooms
+  for (const r of floor.rooms) {
+    const fill = opt.palette?.[r.type] ?? FILL[r.type];
+    p.push(rect(r.rect, `fill="${opt.vastuGrid ? "none" : r.open ? "url(#hatch)" : fill}" ${opt.vastuGrid ? "" : `fill-opacity="${r.open ? 1 : 0.95}"`}`));
+  }
+  // Partitions then outer walls
+  for (const r of floor.rooms) p.push(rect(r.rect, `fill="none" stroke="${INK}" stroke-width="0.375"`));
+  p.push(rect(fp, `fill="none" stroke="${INK}" stroke-width="0.75"`));
+  // Open edges of parking, sit-outs and balconies on the outside
+  for (const r of floor.rooms.filter((x) => x.open)) {
+    const R = r.rect;
+    const edges = [
+      [R.x, R.y, R.x + R.w, R.y, Math.abs(R.y - fp.y) < 0.01],
+      [R.x, R.y + R.h, R.x + R.w, R.y + R.h, Math.abs(R.y + R.h - fp.y - fp.h) < 0.01],
+      [R.x, R.y, R.x, R.y + R.h, Math.abs(R.x - fp.x) < 0.01],
+      [R.x + R.w, R.y, R.x + R.w, R.y + R.h, Math.abs(R.x + R.w - fp.x - fp.w) < 0.01],
+    ] as const;
+    for (const [x1, y1, x2, y2, ext] of edges) if (ext) p.push(line(x1 + (x1 === x2 ? 0 : 0.4), y1 + (y1 === y2 ? 0 : 0.4), x2 - (x1 === x2 ? 0 : 0.4), y2 - (y1 === y2 ? 0 : 0.4), PAPER, 0.85) + line(x1, y1, x2, y2, INK, 0.06, `stroke-dasharray="0.5 0.3"`));
+  }
+
+  // Openings
+  for (const o of floor.openings) p.push(o.kind === "window" || o.kind === "ventilator" ? windowMark(o) : door(o, floor.rooms));
+
+  // Furniture
+  if (opt.furniture !== false) for (const f of floor.furniture) p.push(furnitureSvg(f));
+
+  // Labels
+  for (const r of floor.rooms) {
+    const R = r.rect;
+    const small = Math.min(R.w, R.h) < 5.5;
+    const fs = small ? 0.72 : 1.0;
+    const furn = floor.furniture.filter((f) => f.room === r.id && f.kind !== "stairs");
+    // put the label where the room is emptiest: centre, or above/below the furniture
+    let ly = R.y + R.h / 2;
+    const clash = furn.some((f) => Math.abs(f.rect.y + f.rect.h / 2 - ly) < f.rect.h / 2 + 1 && Math.abs(f.rect.x + f.rect.w / 2 - (R.x + R.w / 2)) < f.rect.w / 2 + 2);
+    if (clash && opt.furniture !== false) {
+      const topFree = Math.min(...furn.map((f) => f.rect.y)) - R.y;
+      const botFree = R.y + R.h - Math.max(...furn.map((f) => f.rect.y + f.rect.h));
+      ly = topFree >= botFree ? R.y + Math.max(1.6, topFree / 2 + 0.4) : R.y + R.h - Math.max(1.4, botFree / 2);
+    }
+    const halo = `paint-order="stroke" stroke="${PAPER}" stroke-width="0.35" stroke-linejoin="round"`;
+    const fit = fitLabel(r.type === "stair" ? "Stair" : r.label, R.w - 0.7, fs);
+    if (fit && R.h >= 2.5) {
+      p.push(`<text x="${n(R.x + R.w / 2)}" y="${n(ly)}" font-size="${n(fit.fs)}" font-weight="600" letter-spacing="0.06" fill="${INK}" text-anchor="middle" ${halo}>${esc(fit.text.toUpperCase())}</text>`);
+      const dimTxt = `${fmtFt(R.w)} × ${fmtFt(R.h)}`;
+      if (!small && opt.dims !== false && r.type !== "passage" && dimTxt.length * 0.82 * 0.55 < R.w - 0.6) p.push(`<text x="${n(R.x + R.w / 2)}" y="${n(ly + 1.15)}" font-size="0.82" fill="#5A5148" text-anchor="middle" ${halo}>${dimTxt}</text>`);
+    }
+  }
+
+  // Main entrance marker
+  const main = floor.openings.find((o) => o.kind === "main");
+  if (main) {
+    const mx = (main.x1 + main.x2) / 2, my = (main.y1 + main.y2) / 2;
+    const off = 2.2;
+    const [tx, ty] = facing === "N" ? [mx, my - off] : facing === "S" ? [mx, my + off + 0.8] : facing === "E" ? [mx + off + 1.4, my + 0.3] : [mx - off - 1.4, my + 0.3];
+    p.push(`<text x="${n(tx)}" y="${n(ty)}" font-size="0.9" font-weight="700" letter-spacing="0.3" fill="#B4532A" text-anchor="middle">ENTRY</text>`);
+  }
+
+  // Dimensions of the house
+  if (opt.dims !== false) {
+    const hy = facing === "N" ? fp.y + fp.h + 2.6 : fp.y - 2.6;
+    const vx = facing === "W" ? fp.x + fp.w + 2.6 : fp.x - 2.6;
+    p.push(dimChain(fp.x, hy, fp.x + fp.w, hy, fmtFt(fp.w), false));
+    p.push(dimChain(vx, fp.y, vx, fp.y + fp.h, fmtFt(fp.h), true));
+  }
+
+  // North arrow
+  const na = { x: vb.x + vb.w - 3.2, y: vb.y + 3.6 };
+  p.push(`<g><circle cx="${n(na.x)}" cy="${n(na.y)}" r="1.9" fill="none" stroke="${INK}" stroke-width="0.07"/><path d="M ${n(na.x)} ${n(na.y - 1.6)} L ${n(na.x + 0.7)} ${n(na.y + 0.9)} L ${n(na.x)} ${n(na.y + 0.45)} L ${n(na.x - 0.7)} ${n(na.y + 0.9)} Z" fill="${INK}"/><text x="${n(na.x)}" y="${n(na.y - 2.3)}" font-size="1" font-weight="700" text-anchor="middle" fill="${INK}">N</text></g>`);
+  // Scale bar (10 ft)
+  const sb = { x: vb.x + 1.5, y: vb.y + vb.h - 1.6 };
+  p.push(rect({ x: sb.x, y: sb.y - 0.25, w: 5, h: 0.25 }, `fill="${INK}"`) + rect({ x: sb.x + 5, y: sb.y - 0.25, w: 5, h: 0.25 }, `fill="none" stroke="${INK}" stroke-width="0.05"`) + `<text x="${n(sb.x)}" y="${n(sb.y - 0.6)}" font-size="0.8" fill="${INK}">0</text><text x="${n(sb.x + 10)}" y="${n(sb.y - 0.6)}" font-size="0.8" fill="${INK}" text-anchor="middle">10 ft</text>`);
+  p.push(`</svg>`);
+  return p.join("");
+}
