@@ -1,0 +1,129 @@
+[
+  {
+    "id": "30x40-east",
+    "title": "30 × 40, east-facing",
+    "note": "2 BHK on the most common city plot. Kitchen in the south-east, master bedroom in the south-west.",
+    "input": {
+      "plotWidth": 30,
+      "plotDepth": 40,
+      "facing": "E",
+      "floors": 1,
+      "bhk": 2,
+      "pooja": true,
+      "study": false,
+      "parking": false,
+      "utility": true,
+      "groundBedroom": false
+    },
+    "vastu": 97,
+    "livability": 100,
+    "builtUp": 778,
+    "floors": 1
+  },
+  {
+    "id": "40x60-courtyard",
+    "title": "40 × 60, west-facing",
+    "note": "3 BHK around a mutram open to the sky, keeping the Brahmasthan open.",
+    "input": {
+      "plotWidth": 40,
+      "plotDepth": 60,
+      "facing": "W",
+      "floors": 1,
+      "bhk": 3,
+      "pooja": true,
+      "study": false,
+      "parking": false,
+      "utility": true,
+      "groundBedroom": false,
+      "courtyard": true
+    },
+    "vastu": 86,
+    "livability": 100,
+    "builtUp": 1325,
+    "floors": 1
+  },
+  {
+    "id": "30x40-north-g1",
+    "title": "30 × 40, north-facing",
+    "note": "3 BHK on two floors, with parking at the front and bedrooms upstairs.",
+    "input": {
+      "plotWidth": 30,
+      "plotDepth": 40,
+      "facing": "N",
+      "floors": 2,
+      "bhk": 3,
+      "pooja": true,
+      "study": false,
+      "parking": true,
+      "utility": true,
+      "groundBedroom": false
+    },
+    "vastu": 91,
+    "livability": 98,
+    "builtUp": 1496,
+    "floors": 2
+  },
+  {
+    "id": "30x50-south",
+    "title": "30 × 50, south-facing",
+    "note": "3 BHK with the master bedroom in the south-west at the front, where Vastu puts it.",
+    "input": {
+      "plotWidth": 30,
+      "plotDepth": 50,
+      "facing": "S",
+      "floors": 1,
+      "bhk": 3,
+      "pooja": true,
+      "study": false,
+      "parking": false,
+      "utility": true,
+      "groundBedroom": false
+    },
+    "vastu": 77,
+    "livability": 100,
+    "builtUp": 963,
+    "floors": 1
+  },
+  {
+    "id": "60x40-wide",
+    "title": "60 × 40, east-facing",
+    "note": "A wide plot: a compact house, an internal courtyard and a garden on the north.",
+    "input": {
+      "plotWidth": 60,
+      "plotDepth": 40,
+      "facing": "E",
+      "floors": 1,
+      "bhk": 2,
+      "pooja": true,
+      "study": false,
+      "parking": false,
+      "utility": true,
+      "groundBedroom": false
+    },
+    "vastu": 99,
+    "livability": 95,
+    "builtUp": 1132,
+    "floors": 1
+  },
+  {
+    "id": "20x30-compact",
+    "title": "20 × 30, north-facing",
+    "note": "1 BHK with a combined living and dining room on a small plot.",
+    "input": {
+      "plotWidth": 20,
+      "plotDepth": 30,
+      "facing": "N",
+      "floors": 1,
+      "bhk": 1,
+      "pooja": false,
+      "study": false,
+      "parking": false,
+      "utility": false,
+      "groundBedroom": false
+    },
+    "vastu": 100,
+    "livability": 96,
+    "builtUp": 425,
+    "floors": 1
+  }
+]

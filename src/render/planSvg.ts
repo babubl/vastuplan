@@ -7,14 +7,14 @@ import { fmtFt } from "../engine/geometry";
 import { ZONES } from "../engine/vastu";
 import type { FloorPlan, Furniture, HouseDesign, Opening, Rect, Room, RoomType } from "../engine/types";
 
-export interface RenderOptions { furniture?: boolean; vastuGrid?: boolean; dims?: boolean; palette?: Partial<Record<RoomType, string>>; mono?: boolean }
+export interface RenderOptions { furniture?: boolean; vastuGrid?: boolean; dims?: boolean; services?: boolean; columns?: boolean; palette?: Partial<Record<RoomType, string>>; mono?: boolean }
 
 const INK = "#1D2733";
 const PAPER = "#FFFFFF";
 const FILL: Record<RoomType, string> = {
   living: "#F1F2EC", dining: "#F3F3EE", kitchen: "#F4EEE4", utility: "#E8EEF0", master: "#EEF0F2", bedroom: "#EEF0F2",
   toilet: "#E4EDF1", dress: "#F0F1F2", pooja: "#F8F0D8", study: "#EDF1EC", stair: "#ECEDEC", parking: "#EFEFEE",
-  store: "#EEEFEC", sitout: "#E9F0E6", lounge: "#F1F2EC", balcony: "#E9F0E6", passage: "#F6F6F3",
+  store: "#EEEFEC", courtyard: "#E3EDDC", sitout: "#E9F0E6", lounge: "#F1F2EC", balcony: "#E9F0E6", passage: "#F6F6F3",
 };
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
@@ -164,7 +164,7 @@ export function renderPlanSvg(d: HouseDesign, floor: FloorPlan, opt: RenderOptio
   const road = 5;
   const vb = planViewBox(d);
   const p: string[] = [];
-  p.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n(vb.x)} ${n(vb.y)} ${n(vb.w)} ${n(vb.h)}" font-family="'Manrope Variable', Manrope, 'Helvetica Neue', Arial, sans-serif">`);
+  p.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n(vb.x)} ${n(vb.y)} ${n(vb.w)} ${n(vb.h)}" font-family="'Archivo Variable', Archivo, 'Helvetica Neue', Arial, sans-serif">`);
   p.push(`<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${INK}"/></marker>
     <pattern id="hatch" width="0.6" height="0.6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="0.6" stroke="#C6CDD3" stroke-width="0.08"/></pattern></defs>`);
   p.push(rect(vb, `fill="${PAPER}"`));
@@ -213,6 +213,42 @@ export function renderPlanSvg(d: HouseDesign, floor: FloorPlan, opt: RenderOptio
 
   // Furniture
   if (opt.furniture !== false) for (const f of floor.furniture) p.push(furnitureSvg(f));
+
+  // Structural columns, 9" x 12"
+  if (opt.columns && floor.columns) for (const c of floor.columns) p.push(rect({ x: c.x - 0.375, y: c.y - 0.5, w: 0.75, h: 1 }, `fill="${INK}"`));
+
+  // Garden in open land wider than 8 ft
+  {
+    const strips: Rect[] = [
+      { x: plot.x, y: plot.y, w: plot.w, h: fp.y - plot.y },
+      { x: plot.x, y: fp.y + fp.h, w: plot.w, h: plot.y + plot.h - fp.y - fp.h },
+      { x: plot.x, y: fp.y, w: fp.x - plot.x, h: fp.h },
+      { x: fp.x + fp.w, y: fp.y, w: plot.x + plot.w - fp.x - fp.w, h: fp.h },
+    ];
+    for (const st of strips) {
+      if (Math.min(st.w, st.h) < 8) continue;
+      const trees = Math.max(1, Math.floor(Math.max(st.w, st.h) / 14));
+      for (let k = 0; k < trees; k++) {
+        const t = (k + 0.5) / trees;
+        const cx = st.w > st.h ? st.x + st.w * t : st.x + st.w * 0.3;
+        const cy = st.w > st.h ? st.y + st.h * 0.3 : st.y + st.h * t;
+        p.push(`<circle cx="${n(cx)}" cy="${n(cy)}" r="1.6" fill="#DCE6D3" stroke="#7E9771" stroke-width="0.06"/><circle cx="${n(cx)}" cy="${n(cy)}" r="0.15" fill="#7E9771"/>`);
+      }
+      p.push(`<text x="${n(st.x + st.w / 2)}" y="${n(st.y + st.h * (st.w > st.h ? 0.72 : 0.5))}" font-size="0.9" fill="#6E8460" text-anchor="middle" letter-spacing="0.2">Garden</text>`);
+    }
+  }
+
+  // Site services: sump, borewell, septic, rainwater pit; overhead tank on the top floor
+  if (opt.services && d.services) {
+    const top = floor.level === d.floors.length - 1;
+    for (const sv of d.services) {
+      if (sv.onRoof ? !top : floor.level !== 0) continue;
+      const col = sv.kind === "septic" ? "#8A6B3A" : sv.kind === "tank" ? "#2E3A87" : "#2C7DA0";
+      if (sv.onRoof) p.push(rect({ x: sv.x - sv.r, y: sv.y - sv.r, w: sv.r * 2, h: sv.r * 2 }, `fill="none" stroke="${col}" stroke-width="0.12" stroke-dasharray="0.4 0.25"`) + `<text x="${n(sv.x)}" y="${n(sv.y + 0.3)}" font-size="0.65" fill="${col}" text-anchor="middle" font-weight="600">OHT</text>`);
+      else if (sv.kind === "septic") p.push(rect({ x: sv.x - sv.r, y: sv.y - sv.r * 0.7, w: sv.r * 2, h: sv.r * 1.4 }, `fill="#F4EEE4" stroke="${col}" stroke-width="0.1"`) + `<text x="${n(sv.x)}" y="${n(sv.y + 0.25)}" font-size="0.6" fill="${col}" text-anchor="middle" font-weight="600">${sv.label}</text>`);
+      else p.push(`<circle cx="${n(sv.x)}" cy="${n(sv.y)}" r="${n(sv.r)}" fill="#EAF3F7" stroke="${col}" stroke-width="0.1"/><text x="${n(sv.x)}" y="${n(sv.y + 0.25)}" font-size="${sv.r < 1 ? 0.45 : 0.6}" fill="${col}" text-anchor="middle" font-weight="600">${sv.label}</text>`);
+    }
+  }
 
   // Labels
   for (const r of floor.rooms) {
@@ -267,7 +303,7 @@ export function renderPlanSvg(d: HouseDesign, floor: FloorPlan, opt: RenderOptio
 /** A single furnished room, for the apartment planner. */
 export function renderRoomSvg(room: Room, openings: Opening[], furniture: Furniture[]): string {
   const r = room.rect, pad = 1.6;
-  const p: string[] = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n(r.x - pad)} ${n(r.y - pad)} ${n(r.w + 2 * pad)} ${n(r.h + 2 * pad)}" font-family="'Manrope Variable', Manrope, Arial, sans-serif">`];
+  const p: string[] = [`<svg xmlns="http://www.w3.org/2000/svg" viewBox="${n(r.x - pad)} ${n(r.y - pad)} ${n(r.w + 2 * pad)} ${n(r.h + 2 * pad)}" font-family="'Archivo Variable', Archivo, Arial, sans-serif">`];
   p.push(rect(r, `fill="${FILL[room.type]}" stroke="${INK}" stroke-width="0.5"`));
   for (const o of openings) p.push(o.kind === "window" || o.kind === "ventilator" ? windowMark(o) : door(o, [room]));
   for (const f of furniture) p.push(furnitureSvg(f));

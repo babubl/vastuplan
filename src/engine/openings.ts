@@ -7,24 +7,25 @@ import type { Facing, Opening, Rect, Room, RoomType } from "./types";
 const ACCESS: Record<RoomType, RoomType[]> = {
   living: ["passage", "sitout"],
   dining: ["living", "passage"],
-  kitchen: ["dining", "passage", "living", "lounge"],
+  kitchen: ["dining", "passage", "living", "lounge", "courtyard"],
   utility: ["kitchen", "passage", "dining"],
-  master: ["dining", "lounge", "passage", "living"],
-  bedroom: ["dining", "lounge", "passage", "living"],
-  study: ["living", "dining", "lounge", "passage"],
+  master: ["dining", "lounge", "passage", "living", "courtyard"],
+  bedroom: ["dining", "lounge", "passage", "living", "courtyard"],
+  study: ["living", "dining", "lounge", "passage", "courtyard"],
   toilet: ["passage", "dining", "lounge", "living"],
   dress: [],
-  pooja: ["living", "dining", "lounge", "passage"],
+  pooja: ["living", "dining", "lounge", "passage", "courtyard"],
   stair: ["dining", "living", "passage", "lounge"],
   parking: [],
   store: ["kitchen", "utility", "dining", "passage", "living", "lounge"],
   sitout: ["living", "lounge", "study", "bedroom", "master", "passage", "dining"],
   lounge: ["stair", "passage", "lounge"],
   balcony: ["lounge", "master", "bedroom", "study", "passage"],
-  passage: ["dining", "living", "lounge", "stair"],
+  passage: ["dining", "living", "lounge", "stair", "courtyard"],
+  courtyard: ["dining", "living", "passage", "lounge"],
 };
 
-const OPEN_LINKS = new Set(["dining-living", "passage-dining", "passage-living", "stair-dining", "stair-living", "stair-passage", "stair-lounge", "lounge-stair", "passage-lounge", "lounge-passage", "dress-master", "dress-bedroom", "sitout-living", "dining-passage", "living-passage"]);
+const OPEN_LINKS = new Set(["dining-living", "passage-dining", "passage-living", "stair-dining", "stair-living", "stair-passage", "stair-lounge", "lounge-stair", "passage-lounge", "lounge-passage", "dress-master", "dress-bedroom", "sitout-living", "dining-passage", "living-passage", "courtyard-dining", "courtyard-living", "courtyard-passage", "courtyard-lounge"]);
 
 function doorWidth(room: Room, via: Room): number {
   if (room.type === "dining" && via.type === "living") return 5;

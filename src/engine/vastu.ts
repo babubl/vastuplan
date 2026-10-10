@@ -34,6 +34,7 @@ export const PREF: Record<RoomType, Partial<Record<Zone, number>>> = {
   sitout: { NE: 1, N: 1, E: 1, NW: 0.7, SE: 0.6, W: 0.5, S: 0.4, SW: 0.3, C: 0.3 },
   lounge: { C: 0.9, N: 0.9, E: 0.9, NE: 0.9, W: 0.75, NW: 0.75, S: 0.6, SE: 0.55, SW: 0.45 },
   balcony: { N: 1, E: 1, NE: 1, NW: 0.65, SE: 0.6, W: 0.45, S: 0.35, SW: 0.2, C: 0.2 },
+  courtyard: { C: 1, NE: 0.9, N: 0.9, E: 0.9, NW: 0.7, W: 0.7, S: 0.6, SE: 0.6, SW: 0.4 },
   passage: { NE: 0.8, N: 0.8, E: 0.8, NW: 0.8, W: 0.8, C: 0.8, S: 0.8, SE: 0.8, SW: 0.8 },
 };
 
@@ -64,3 +65,34 @@ export function auspiciousStretch(facing: Facing, fp: Rect): { a: number; b: num
 }
 
 export const DIRECTION_NAME: Record<Facing, string> = { N: "north", E: "east", S: "south", W: "west" };
+
+/**
+ * Why each rule exists, in the terms Vastu Shastra itself uses: the five elements (pancha bhoota),
+ * the guardian of each direction, and the path of the sun in India. Shown with every check.
+ */
+export const WHY: Record<string, string> = {
+  entrance: "The 32 padas around a house each carry a deity. The auspicious padas welcome energy and morning light at the door; corners and the south-west padas are avoided. A door on the north-east half of an east or north wall also catches the early sun.",
+  kitchen: "The south-east (Agneya) is ruled by Agni, the fire element. Cooking there aligns fire with fire, and the morning sun from the east dries and lights the kitchen. North-west, the air corner, is the accepted alternative because air feeds fire.",
+  master: "The south-west (Nairutya) is the earth element: the heaviest, most stable corner, ruled by Nirrti. It is meant for the head of the family, giving stability and authority. Thick walls on the south and west also shield this room from the hot afternoon sun.",
+  pooja: "The north-east (Ishanya) is ruled by Ishana, a form of Shiva, and holds the water element. It is the most sacred corner: kept the lightest, lowest, cleanest and most open. Praying here, facing east, faces the rising sun.",
+  toilets: "Waste is never placed in the sacred north-east or the centre. The north-west (air, movement) and west suit toilets because air carries odour away; the south-west is avoided because it must stay heavy and pure for the head of the family.",
+  centre: "The centre (Brahmasthan) is the seat of Brahma, the space element. Traditional homes keep it open to the sky as a courtyard (mutram). Toilets, staircases and heavy walls here are said to press on the heart of the house.",
+  stair: "Staircases are heavy and rise upward, so they belong where weight is wanted: the south, west or south-west. Climbing clockwise follows the sun's path. In the north-east or the centre they block the lightest, most open zones.",
+  living: "The north and east bring soft daylight and the morning sun. North is ruled by Kubera (wealth) and east by Indra and Surya (the sun), making them the most welcoming zones for receiving guests.",
+  bedrooms: "Children and guests suit the west (Varuna, gains and steadiness) and north-west (Vayu, air and movement). The north-west especially suits people who come and go: guests and grown children.",
+  open: "The north and east should have more open space and the south and west more mass. Open north-east lets in the morning sun; heavier south-west blocks the harsher afternoon sun from the south-west in Indian summers.",
+  sleep: "Sleep with your head to the south or east. With the head to the north, tradition says the body's magnetic polarity opposes the earth's, disturbing sleep. Head to the east is considered best for students.",
+  cook: "Facing east while cooking means facing the morning sun and Indra, the guardian of the east, and keeps the cook in natural light.",
+  plot: "Square and near-square plots are considered most balanced. Long, thin plots stretch the energy of the house; beyond about 1 : 2 the guidance is to split the plot or build along its length with courtyards.",
+  corner: "A plot with roads on two sides takes its character from the corner it sits on. A north-east corner plot is the most prized; north-west and south-east corners are good with care; a south-west corner plot needs a solid, higher wall on the south and west.",
+};
+
+export interface CornerGuide { zone: "NE" | "SE" | "SW" | "NW"; name: string; element: string; guardian: string; keep: string[]; avoid: string[]; site: string }
+
+/** Thumb rules for the four corners, the most-asked part of Vastu. */
+export const CORNERS: CornerGuide[] = [
+  { zone: "NE", name: "Ishanya", element: "Water", guardian: "Ishana (Shiva)", keep: ["Pooja", "living or sit-out", "open space and windows", "sump, borewell, well"], avoid: ["toilets or septic tank", "kitchen", "staircase", "heavy furniture or storage", "overhead tank", "high walls"], site: "The lowest point of the plot: slope floors, roof and ground drainage towards it." },
+  { zone: "SE", name: "Agneya", element: "Fire", guardian: "Agni", keep: ["Kitchen", "electrical panel, inverter, generator", "transformer or meter"], avoid: ["sump or underground water", "pooja", "the couple's bedroom", "main entrance at the corner"], site: "Fire and water must not meet: keep water tanks and sumps out of this corner." },
+  { zone: "SW", name: "Nairutya", element: "Earth", guardian: "Nirrti", keep: ["Master bedroom", "staircase", "heavy storage and wardrobes", "overhead water tank (the highest point)"], avoid: ["main entrance", "toilet or septic tank", "sump, borewell or any pit", "open space or windows larger than elsewhere", "kitchen"], site: "The highest and heaviest point: the overhead tank, a higher compound wall, tall trees." },
+  { zone: "NW", name: "Vayavya", element: "Air", guardian: "Vayu", keep: ["Guest room or grown children's room", "toilets", "store for grains", "parking", "septic tank (away from the walls)"], avoid: ["master bedroom for the head of the family", "pooja", "underground water tank"], site: "A place of movement: suits things and people that come and go." },
+];

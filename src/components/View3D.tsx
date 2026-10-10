@@ -128,20 +128,20 @@ export default function View3D({ design, floor, style, selected, onSelect, class
   useEffect(() => {
     for (const m of pickRef.current) {
       const mm = m.material as THREE.MeshStandardMaterial;
-      mm.emissive = new THREE.Color(m.userData.roomId === selected ? "#2E3A87" : "#000000");
+      mm.emissive = new THREE.Color(m.userData.roomId === selected ? "#1E3DCB" : "#000000");
       mm.emissiveIntensity = m.userData.roomId === selected ? 0.35 : 0;
     }
   });
 
-  if (failed) return <div className={cx("flex items-center justify-center rounded-lg bg-white p-8 text-center text-muted ring-1 ring-line", className)}>3D needs WebGL, which this browser has turned off. The plan view shows the same layout.</div>;
+  if (failed) return <div className={cx("flex items-center justify-center bg-white p-8 text-center text-muted ring-1 ring-line", className)}>3D needs WebGL, which this browser has turned off. The plan view shows the same layout.</div>;
   return (
-    <div className={cx("overflow-hidden rounded-lg ring-1 ring-line", className ?? "relative")}>
+    <div className={cx("overflow-hidden ring-1 ring-line", className ?? "relative")}>
       <div ref={host} className="h-full w-full touch-none" aria-label="3D model of the house. Drag to rotate, scroll or pinch to zoom." role="img" />
       <div className="no-print absolute left-3 top-3 flex flex-wrap items-center gap-2">
         <Segmented label="Camera" value={cam} onChange={setCam} options={[{ value: "orbit", label: "Around" }, { value: "top", label: "Top" }, { value: "eye", label: "Walk in" }]} />
         {cam !== "eye" && <Segmented label="Walls" value={cutaway ? "cut" : "full"} onChange={(v) => setCutaway(v === "cut")} options={[{ value: "cut", label: "Cut-away" }, { value: "full", label: "Full walls" }]} />}
       </div>
-      <p className="pointer-events-none absolute bottom-3 left-3 rounded bg-white/85 px-2 py-1 text-[12px] text-muted">{cam === "eye" ? "You are standing inside the main door. Drag to look around." : "Drag to rotate. Scroll or pinch to zoom. Tap a room."}</p>
+      <p className="pointer-events-none absolute bottom-3 left-3 bg-white/90 px-2 py-1 text-[12px] text-muted">{cam === "eye" ? "You are standing inside the main door. Drag to look around." : "Drag to rotate. Scroll or pinch to zoom. Tap a room."}</p>
     </div>
   );
 }

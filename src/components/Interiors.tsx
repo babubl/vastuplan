@@ -9,7 +9,7 @@ export function StylePicker({ value, onChange }: { value: StyleId; onChange: (s:
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Interior style">
       {STYLES.map((s) => (
         <button key={s.id} role="radio" aria-checked={value === s.id} onClick={() => onChange(s.id)}
-          className={cx("rounded-md bg-white p-2.5 text-left ring-1 transition", value === s.id ? "ring-2 ring-indigo" : "ring-line hover:ring-ink/30")}>
+          className={cx(" bg-white p-2.5 text-left ring-1 transition", value === s.id ? "ring-2 ring-ink" : "ring-line hover:ring-ink/30")}>
           <span className="flex h-6 overflow-hidden rounded" aria-hidden>{[s.floors.living.hex, s.wood.hex, s.fabric.hex, s.accent.hex].map((h) => <span key={h} className="flex-1" style={{ background: h }} />)}</span>
           <span className="mt-2 block text-[13px] font-semibold leading-tight text-ink">{s.name}</span>
         </button>
@@ -28,8 +28,8 @@ export default function Interiors({ design, style, onStyle }: { design: HouseDes
         {rooms.map((r) => {
           const s = schemeFor(r, style);
           return (
-            <article key={r.id} className="rounded-lg bg-white p-4 ring-1 ring-line">
-              <div className="mb-3 flex h-16 overflow-hidden rounded-md" aria-hidden>
+            <article key={r.id} className=" bg-white p-4 ring-1 ring-line">
+              <div className="mb-3 flex h-16 overflow-hidden" aria-hidden>
                 <span className="flex-[3]" style={{ background: s.wall.hex }} />
                 <span className="flex-[2]" style={{ background: s.floor.hex }} />
                 <span className="flex-1" style={{ background: s.wood.hex }} />

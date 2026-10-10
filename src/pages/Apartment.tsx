@@ -20,12 +20,12 @@ function ZonePicker({ value, onChange, label }: { value: Zone; onChange: (z: Zon
   return (
     <div role="radiogroup" aria-label={label} className="grid w-[84px] grid-cols-3 gap-0.5">
       {GRID.map((z) => <button key={z} type="button" role="radio" aria-checked={value === z} title={`${z === "C" ? "Centre" : z} (${ZONES[z].name})`} onClick={() => onChange(z)}
-        className={cx("h-6 rounded-sm text-[10px] font-bold", value === z ? "bg-indigo text-white" : "bg-ink/[0.06] text-muted hover:bg-ink/15")}>{z}</button>)}
+        className={cx("h-6 text-[10px] font-bold", value === z ? "bg-ink text-white" : "bg-ink/[0.06] text-muted hover:bg-ink/15")}>{z}</button>)}
     </div>
   );
 }
 
-const sel = "rounded-md border border-line bg-white px-2 py-1.5 text-[14px] text-ink outline-none focus:border-indigo";
+const sel = " border border-line bg-white px-2 py-1.5 text-[14px] text-ink outline-none focus:border-ink";
 
 export default function Apartment() {
   const [flat, setFlat] = useState<FlatInput>(DEFAULT_FLAT);
@@ -42,7 +42,7 @@ export default function Apartment() {
       <p className="mt-3 max-w-2xl text-[17px] text-body">You can't move the walls, but you can choose how each room is used and furnished. List your rooms, mark where each one sits in the flat, and see the Vastu check, a furnished layout and an interior scheme for every room.</p>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1.25fr_0.75fr]">
-        <section className="min-w-0 rounded-lg bg-white p-5 ring-1 ring-line">
+        <section className="min-w-0 bg-white p-5 ring-1 ring-line">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg">Your rooms</h2>
             <div className="flex items-center gap-2 text-[13px]"><span className="font-semibold text-ink">Main door faces</span>
@@ -70,7 +70,7 @@ export default function Apartment() {
               </tbody>
             </table>
           </div>
-          <button onClick={add} className="mt-3 inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[14px] font-semibold text-indigo hover:bg-indigo-50"><Plus className="size-4" />Add a room</button>
+          <button onClick={add} className="mt-3 inline-flex items-center gap-1.5 px-2 py-1.5 text-[14px] font-semibold text-cobalt hover:bg-cobalt-50"><Plus className="size-4" />Add a room</button>
         </section>
 
         <section>
@@ -89,10 +89,10 @@ export default function Apartment() {
             const s = schemeFor(room, style);
             const fit = prefOf(room.type, room.zone);
             return (
-              <article key={fr.id} className="rounded-lg bg-white p-4 ring-1 ring-line">
+              <article key={fr.id} className=" bg-white p-4 ring-1 ring-line">
                 <div className="flex items-baseline justify-between gap-2"><h3 className="text-[17px]">{fr.label}</h3><span className="num text-[12.5px] text-muted">{fr.width} × {fr.length} ft</span></div>
                 <p className={cx("text-[12.5px] font-semibold", fit >= 0.85 ? "text-neem" : fit >= 0.45 ? "text-[#8A5F00]" : "text-chilli")}>{fr.zone === "C" ? "Centre" : fr.zone} zone, {fit >= 0.85 ? "ideal" : fit >= 0.45 ? "acceptable" : "not preferred"}</p>
-                <div className="mt-3 aspect-[4/3] rounded-md bg-paper p-2 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: renderRoomSvg(room, openings, furniture) }} />
+                <div className="mt-3 aspect-[4/3] bg-stone p-2 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: renderRoomSvg(room, openings, furniture) }} />
                 <div className="mt-3 grid grid-cols-2 gap-2.5"><Swatch hex={s.wall.hex} name={s.wall.name} sub="Walls" /><Swatch hex={s.floor.hex} name={s.floor.name} sub="Floor" /></div>
                 {s.tip && <p className="mt-3 text-[12.5px] text-body">{s.tip}</p>}
               </article>

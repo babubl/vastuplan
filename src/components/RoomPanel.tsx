@@ -9,7 +9,7 @@ const SQM = 10.7639;
 export function Swatch({ hex, name, sub }: { hex: string; name: string; sub?: string }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="size-8 shrink-0 rounded-md ring-1 ring-black/10" style={{ background: hex }} aria-hidden />
+      <span className="size-8 shrink-0 ring-1 ring-black/10" style={{ background: hex }} aria-hidden />
       <span className="min-w-0 leading-tight"><span className="block text-[13.5px] font-semibold text-ink">{name}</span>{sub && <span className="block text-[12px] text-muted">{sub}</span>}</span>
     </div>
   );
@@ -32,7 +32,7 @@ export default function RoomPanel({ design, roomId, style, onClose }: { design: 
         </div>
         <button onClick={onClose} className="rounded p-1 text-muted hover:bg-ink/5 hover:text-ink" aria-label="Close room details"><X className="size-5" /></button>
       </div>
-      <div className="mt-4 rounded-md bg-paper p-3">
+      <div className="mt-4 bg-stone p-3">
         <p className="text-[13.5px] text-ink"><span className="font-semibold">{room.zone === "C" ? "Centre" : room.zone}</span> zone, {ZONES[room.zone].name}</p>
         <p className="mt-0.5 text-[13px] text-muted">{ZONES[room.zone].meaning}</p>
         {!["passage", "store", "sitout", "balcony", "dress"].includes(room.type) && <p className={`mt-2 text-[13px] font-semibold ${verdict.c}`}>{verdict.t}</p>}

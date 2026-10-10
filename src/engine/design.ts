@@ -1,9 +1,11 @@
 /** Generates and ranks complete house designs for a plot. */
 import { area, localFrame, toCompass } from "./geometry";
-import { assignments, bandDepths, bandOptions, toRooms, BANDS, type BandGeom, type BandOption, type Ctx, type Placed } from "./layout";
+import { assignments, bandDepths, bandOptions, toRooms, BANDS, HUB_CAP, type BandGeom, type BandOption, type Ctx, type Placed } from "./layout";
 import { firstProgram, groundProgram, type Spec } from "./program";
 import { computeOpenings, type OpeningResult } from "./openings";
-import { livabilityChecks, scoreOf, vastuChecks } from "./checks";
+import { cornerChecks, livabilityChecks, scoreOf, vastuChecks } from "./checks";
+import { WHY } from "./vastu";
+import { columnsFor, servicesFor } from "./site";
 import { furnish } from "./furniture";
 import type { Band, FloorPlan, HouseDesign, HouseInput, Rect, Setbacks } from "./types";
 
@@ -52,14 +54,14 @@ function* product<T>(lists: T[][]): Generator<T[]> {
   for (const h of head) for (const r of product(rest)) yield [h, ...r];
 }
 
-function searchFloor(ctxBase: Omit<Ctx, "footprint" | "frame">, specs: Spec[], input: HouseInput, plot: Rect, buildable: Rect, opts: { fixedGeoms?: BandGeom[]; footprint?: Rect; stair?: Placed; keep: number }): Candidate[] {
+function searchFloor(ctxBase: Omit<Ctx, "footprint" | "frame">, specs: Spec[], input: HouseInput, plot: Rect, buildable: Rect, opts: { fixedGeoms?: BandGeom[]; footprint?: Rect; fixed?: Placed[]; keep: number }): Candidate[] {
   const bFrame = localFrame(input.facing, buildable);
   const cache = new Map<string, BandOption[]>();
   const results: Candidate[] = [];
   const seen = new Set<string>();
   for (const by of assignments(specs)) {
-    let footprint: Rect, geoms: BandGeom[];
-    if (opts.fixedGeoms && opts.footprint) { footprint = opts.footprint; geoms = opts.fixedGeoms; }
+    const shapes: { footprint: Rect; geoms: BandGeom[] }[] = [];
+    if (opts.fixedGeoms && opts.footprint) shapes.push({ footprint: opts.footprint, geoms: opts.fixedGeoms });
     else {
       // Two-storey homes: bedrooms upstairs sit over the front and rear bands, so those bands must be bedroom-deep.
       if (input.floors === 2 && !by.rear.length) continue;
@@ -67,9 +69,13 @@ function searchFloor(ctxBase: Omit<Ctx, "footprint" | "frame">, specs: Spec[], i
       if (!d) continue;
       const north = input.facing === "N" || input.facing === "E"; // keep the extra open space on the north/east
       const voff = north ? bFrame.depth - d.used : 0;
-      footprint = toCompass(bFrame, 0, voff, bFrame.frontage, d.used);
-      geoms = d.geoms;
+      for (const W of widthsFor(by, bFrame.frontage)) {
+        // Unused width becomes a side garden on the east (N/S-facing plots) or north (E/W-facing plots).
+        const uoff = input.facing === "E" || input.facing === "W" ? bFrame.frontage - W : 0;
+        shapes.push({ footprint: toCompass(bFrame, uoff, voff, W, d.used), geoms: d.geoms });
+      }
     }
+    for (const { footprint, geoms } of shapes) {
     const ctx: Ctx = { ...ctxBase, frame: localFrame(input.facing, footprint), footprint };
     const perBand: BandOption[][] = [];
     let ok = true;
@@ -77,7 +83,7 @@ function searchFloor(ctxBase: Omit<Ctx, "footprint" | "frame">, specs: Spec[], i
       const g = geoms.find((x) => x.band === b);
       const specsB = by[b];
       if (!g) { if (specsB.length) { ok = false; break; } continue; }
-      const fixed = opts.stair && opts.stair.band === b ? { u: opts.stair.u, w: opts.stair.w, placed: opts.stair } : undefined;
+      const fixed = (opts.fixed ?? []).filter((f) => f.band === b).map((f) => ({ u: f.u, w: f.w, placed: f }));
       const key = `${b}|${specsB.map((s) => s.key).sort().join(",")}|${g.v.toFixed(2)}|${g.d.toFixed(2)}|${footprint.w.toFixed(2)}x${footprint.h.toFixed(2)}`;
       let o = cache.get(key);
       if (!o) { o = bandOptions(ctx, g, specsB, ctx.frame.frontage, 6, fixed); cache.set(key, o); }
@@ -94,12 +100,27 @@ function searchFloor(ctxBase: Omit<Ctx, "footprint" | "frame">, specs: Spec[], i
       const quick = ctx.level === 0 ? quickScore([fp], footprint, plot, input, [op]) : -op.unreachable.length * 30;
       results.push({ placed, geoms, footprint, ctx, quick: quick + combo.reduce((s, c) => s + c.proxy, 0) * 0.15, openings: op });
     }
+    }
   }
   results.sort((a, b) => b.quick - a.quick);
   return results.slice(0, opts.keep);
 }
 
 const frontageOf = (i: HouseInput, b: Rect) => (i.facing === "N" || i.facing === "S" ? b.w : b.h);
+
+
+/**
+ * Candidate house widths. On a wide plot, stretching every room to the full frontage gives a
+ * corridor-like dining hall; a narrower house with a garden on the north or east is better
+ * architecture and better Vastu, so both are tried and the scoring decides.
+ */
+function widthsFor(by: Record<Band, Spec[]>, frontage: number): number[] {
+  const cap = Math.max(...BANDS.map((b) => by[b].reduce((s, x) => s + (x.hub ? Math.min(x.maxW, HUB_CAP[x.type] ?? x.maxW) : x.maxW) + (x.suite ? 5.5 : 0), 0)));
+  const out = [frontage];
+  if (frontage - cap >= 6) out.push(Math.max(cap, 18));
+  if (frontage - cap >= 16) out.push(Math.round((frontage + cap) / 2));
+  return out;
+}
 
 export function generate(input: HouseInput, count = 3): HouseDesign[] {
   const out = generateExact(input, count);
@@ -109,6 +130,8 @@ export function generate(input: HouseInput, count = 3): HouseDesign[] {
   alt.forEach((d) => { d.input = input; d.notes.unshift("A covered car bay did not fit on this plot along with the rooms you asked for, so the plan keeps the front open space for parking."); });
   return alt;
 }
+
+const footprintFrontage = (i: HouseInput, f: Rect) => (i.facing === "N" || i.facing === "S" ? f.w : f.h);
 
 function generateExact(input: HouseInput, count: number): HouseDesign[] {
   const { plot, buildable } = plotRects(input);
@@ -123,7 +146,9 @@ function generateExact(input: HouseInput, count: number): HouseDesign[] {
     if (input.floors === 2) {
       const stair = g.placed.find((p) => p.type === "stair");
       if (!stair) continue;
-      const first = searchFloor({ facing: input.facing, level: 1 }, firstProgram(input, frontageOf(input, buildable)), input, plot, buildable, { fixedGeoms: g.geoms, footprint: g.footprint, stair, keep: 6 });
+      // The staircase and any courtyard carry straight up through the first floor.
+      const fixed = g.placed.filter((p) => p.type === "stair" || p.type === "courtyard").map((p) => (p.type === "courtyard" ? { ...p, label: "Open to sky" } : p));
+      const first = searchFloor({ facing: input.facing, level: 1 }, firstProgram(input, footprintFrontage(input, g.footprint)), input, plot, buildable, { fixedGeoms: g.geoms, footprint: g.footprint, fixed, keep: 6 });
       const best = first
         .map((f) => { const rooms = toRooms(f.ctx, f.placed); const fp: FloorPlan = { level: 1, name: "First floor", rooms, openings: f.openings.openings, furniture: [] }; return { f, fp, s: quickScore([floors[0], fp], g.footprint, plot, input, [g.openings, f.openings]) }; })
         .sort((a, b) => b.s - a.s)[0];
@@ -133,12 +158,14 @@ function generateExact(input: HouseInput, count: number): HouseDesign[] {
     }
     for (const f of floors) f.furniture = f.rooms.flatMap((r) => furnish(r, f.openings));
     const ci = { floors, footprint: g.footprint, plot, facing: input.facing, mainInStretch: ops[0].mainInStretch, mainNearStretch: ops[0].mainNearStretch, hasMain: !!ops[0].mainDoor, unreachable: ops.flatMap((o) => o.unreachable) };
-    const vastu = vastuChecks(ci), livability = livabilityChecks(ci, input.parking);
+    for (const f of floors) f.columns = columnsFor(floors[0].rooms, g.footprint);
+    const vastu = [...vastuChecks(ci), ...cornerChecks(ci, input)].map((c) => ({ ...c, why: c.why ?? WHY[c.id] }));
+    const livability = livabilityChecks(ci, input.parking);
     const vastuScore = scoreOf(vastu), livabilityScore = scoreOf(livability);
     const builtUpArea = Math.round(floors.reduce((s, f) => s + f.rooms.filter((r) => !(r.open && r.type !== "parking")).reduce((a, r) => a + area(r.rect), 0), 0));
     designs.push({
       id: "", input, plot, buildable, footprint: g.footprint, floors, vastu, livability, vastuScore, livabilityScore,
-      score: Math.round(0.55 * vastuScore + 0.45 * livabilityScore), builtUpArea, notes: notesFor(input, livability),
+      score: Math.round(0.55 * vastuScore + 0.45 * livabilityScore), builtUpArea, notes: notesFor(input, livability), services: servicesFor(plot, g.footprint),
     });
   }
   designs.sort((a, b) => b.score - a.score);

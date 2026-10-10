@@ -5,13 +5,13 @@ import { fmtFt } from "../engine/geometry";
 import type { HouseDesign } from "../engine/types";
 import { cx } from "./ui";
 
-export interface Layers { furniture: boolean; grid: boolean; dims: boolean }
+export interface Layers { furniture: boolean; grid: boolean; dims: boolean; services?: boolean; columns?: boolean }
 
 export default function PlanView({ design, floor, layers, selected, onSelect, className }: {
   design: HouseDesign; floor: number; layers: Layers; selected?: string | null; onSelect?: (id: string | null) => void; className?: string;
 }) {
   const f = design.floors[Math.min(floor, design.floors.length - 1)];
-  const svg = useMemo(() => renderPlanSvg(design, f, { furniture: layers.furniture, vastuGrid: layers.grid, dims: layers.dims }), [design, f, layers.furniture, layers.grid, layers.dims]);
+  const svg = useMemo(() => renderPlanSvg(design, f, { furniture: layers.furniture, vastuGrid: layers.grid, dims: layers.dims, services: layers.services, columns: layers.columns }), [design, f, layers.furniture, layers.grid, layers.dims, layers.services, layers.columns]);
   const vb = planViewBox(design);
   const [view, setView] = useState({ s: 1, x: 0, y: 0 });
   const [hover, setHover] = useState<string | null>(null);
@@ -66,7 +66,7 @@ export default function PlanView({ design, floor, layers, selected, onSelect, cl
 
   const hovered = f.rooms.find((r) => r.id === hover);
   return (
-    <div className={cx("select-none overflow-hidden rounded-lg bg-white ring-1 ring-line", className ?? "relative")}>
+    <div className={cx("select-none overflow-hidden bg-white ring-1 ring-line", className ?? "relative")}>
       <div ref={box} className="relative h-full w-full touch-none" style={{ cursor: view.s > 1 ? "grab" : "default" }}
         onWheel={onWheel} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <div className="absolute inset-0 origin-top-left" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.s})` }}>
@@ -78,8 +78,8 @@ export default function PlanView({ design, floor, layers, selected, onSelect, cl
                   const on = selected === r.id, hov = hover === r.id;
                   return (
                     <rect key={r.id} x={r.rect.x} y={r.rect.y} width={r.rect.w} height={r.rect.h}
-                      fill={on ? "rgba(46,58,135,0.13)" : hov ? "rgba(46,58,135,0.06)" : "transparent"}
-                      stroke={on || hov ? "#2E3A87" : "none"} strokeWidth={on ? 0.35 : 0.22}
+                      fill={on ? "rgba(30,61,203,0.12)" : hov ? "rgba(30,61,203,0.06)" : "transparent"}
+                      stroke={on || hov ? "#1E3DCB" : "none"} strokeWidth={on ? 0.35 : 0.22}
                       style={{ cursor: "pointer" }} tabIndex={0} role="button" aria-label={`${r.label}, ${fmtFt(r.rect.w)} by ${fmtFt(r.rect.h)}`} aria-pressed={on}
                       onFocus={() => setHover(r.id)} onBlur={() => setHover((h) => (h === r.id ? null : h))} onPointerEnter={() => setHover(r.id)} onPointerLeave={() => setHover((h) => (h === r.id ? null : h))}
                       onClick={() => click(r.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect?.(selected === r.id ? null : r.id); } }} />
@@ -91,14 +91,14 @@ export default function PlanView({ design, floor, layers, selected, onSelect, cl
         </div>
       </div>
       {hovered && (
-        <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-ink px-2.5 py-1.5 text-[13px] text-white shadow-lg">
+        <div className="pointer-events-none absolute left-3 top-3 bg-ink px-2.5 py-1.5 text-[13px] text-white">
           <span className="font-semibold">{hovered.label}</span> <span className="num text-white/70">{fmtFt(hovered.rect.w)} × {fmtFt(hovered.rect.h)}, {Math.round(hovered.rect.w * hovered.rect.h)} sq ft</span>
         </div>
       )}
-      <div className="no-print absolute bottom-3 right-3 flex overflow-hidden rounded-md bg-white shadow-[0_1px_3px_rgba(29,39,51,.2)] ring-1 ring-line">
-        <button className="p-2 text-ink hover:bg-paper" aria-label="Zoom in" onClick={() => zoomAt(1.4, ...centre())}><Plus className="size-4" /></button>
-        <button className="border-x border-line p-2 text-ink hover:bg-paper" aria-label="Zoom out" onClick={() => zoomAt(1 / 1.4, ...centre())}><Minus className="size-4" /></button>
-        <button className="p-2 text-ink hover:bg-paper" aria-label="Fit to view" onClick={() => setView({ s: 1, x: 0, y: 0 })}><Maximize2 className="size-4" /></button>
+      <div className="no-print absolute bottom-3 right-3 flex overflow-hidden border border-ink bg-white">
+        <button className="p-2 text-ink hover:bg-stone" aria-label="Zoom in" onClick={() => zoomAt(1.4, ...centre())}><Plus className="size-4" /></button>
+        <button className="border-x border-line p-2 text-ink hover:bg-stone" aria-label="Zoom out" onClick={() => zoomAt(1 / 1.4, ...centre())}><Minus className="size-4" /></button>
+        <button className="p-2 text-ink hover:bg-stone" aria-label="Fit to view" onClick={() => setView({ s: 1, x: 0, y: 0 })}><Maximize2 className="size-4" /></button>
       </div>
     </div>
   );

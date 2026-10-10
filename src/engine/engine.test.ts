@@ -53,3 +53,37 @@ describe("house generator", () => {
     expect(JSON.stringify(generate(base))).toBe(JSON.stringify(generate(base)));
   });
 });
+
+describe("plot-aware design", () => {
+  it("does not stretch the dining hall into a corridor on a wide plot", () => {
+    const d = generate({ ...base, plotWidth: 60, plotDepth: 40, facing: "E" })[0];
+    const dining = d.floors[0].rooms.find((r) => r.type === "dining")!;
+    expect(Math.max(dining.rect.w, dining.rect.h) / Math.min(dining.rect.w, dining.rect.h)).toBeLessThanOrEqual(2.1);
+  });
+  it("adds a courtyard when asked and keeps every room reachable", () => {
+    const d = generate({ ...base, plotWidth: 40, plotDepth: 60, bhk: 3, courtyard: true })[0];
+    expect(d.floors[0].rooms.some((r) => r.type === "courtyard")).toBe(true);
+    expect(d.livability.find((c) => c.id === "access")?.status).toBe("pass");
+  });
+  it("checks all four corners with reasons, and places site services", () => {
+    const d = generate(base)[0];
+    const corners = d.vastu.filter((c) => c.group === "corner");
+    expect(corners.map((c) => c.id).sort()).toEqual(["corner-NE", "corner-NW", "corner-SE", "corner-SW"]);
+    expect(corners.every((c) => c.why && c.why.length > 40)).toBe(true);
+    expect(d.vastu.filter((c) => c.group !== "corner").every((c) => c.why)).toBe(true);
+    expect(d.services.map((s) => s.kind).sort()).toEqual(["borewell", "rwh", "septic", "sump", "tank"]);
+    const sump = d.services.find((s) => s.kind === "sump")!;
+    expect(sump.x).toBeGreaterThan(d.plot.w / 2); // east half
+    expect(sump.y).toBeLessThan(d.plot.h / 2); // north half
+  });
+  it("scores a north-east corner plot above a south-west one", () => {
+    const ne = generate({ ...base, facing: "N", corner: "E" })[0].vastu.find((c) => c.id === "corner")!;
+    const sw = generate({ ...base, facing: "S", corner: "W" })[0].vastu.find((c) => c.id === "corner")!;
+    expect(ne.score).toBeGreaterThan(sw.score);
+  });
+  it("puts columns at every corner of the house", () => {
+    const d = generate(base)[0];
+    const fp = d.footprint;
+    for (const [x, y] of [[fp.x, fp.y], [fp.x + fp.w, fp.y], [fp.x, fp.y + fp.h], [fp.x + fp.w, fp.y + fp.h]]) expect(d.floors[0].columns!.some((c) => Math.abs(c.x - x) < 0.01 && Math.abs(c.y - y) < 0.01)).toBe(true);
+  });
+});

@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 const Designer = lazy(() => import("./pages/Designer"));
 const Apartment = lazy(() => import("./pages/Apartment"));
 const Method = lazy(() => import("./pages/Method"));
+const Corners = lazy(() => import("./pages/Corners"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Hash routing for static previews where the page's path is unknown (VITE_HASH_ROUTER=1).
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="design" element={<Designer />} />
             <Route path="apartment" element={<Apartment />} />
             <Route path="method" element={<Method />} />
+            <Route path="corners" element={<Corners />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

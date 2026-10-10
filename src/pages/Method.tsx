@@ -22,7 +22,7 @@ export default function Method() {
       <h2 className="mt-12 text-2xl">The nine zones</h2>
       <div className="mt-4 grid grid-cols-3 gap-1.5">
         {ORDER.map((z) => (
-          <div key={z} className="rounded-md p-3 ring-1 ring-black/5" style={{ background: ZONES[z].colours[0].hex }}>
+          <div key={z} className=" p-3 ring-1 ring-black/5" style={{ background: ZONES[z].colours[0].hex }}>
             <p className="font-bold text-ink">{z === "C" ? "Centre" : z} <span className="font-medium text-muted">{ZONES[z].name}</span></p>
             <p className="mt-1 text-[12.5px] leading-snug text-body">{ZONES[z].meaning}</p>
           </div>

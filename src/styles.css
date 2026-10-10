@@ -1,33 +1,44 @@
 @import "tailwindcss";
 
+/*
+ * Studio layout: white sheets, black ink, generous margins, drawings as the imagery.
+ * Type: Archivo, a grotesk with a width axis. Headlines are set expanded; text at normal width.
+ */
 @theme {
-  --font-sans: "Manrope Variable", Manrope, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --color-paper: #F3F4F1;
-  --color-ink: #1D2733;
-  --color-body: #3F4B57;
-  --color-muted: #6C7782;
-  --color-line: #D9DDD8;
-  --color-indigo: #2E3A87;
-  --color-indigo-700: #232C6B;
-  --color-indigo-50: #ECEEF8;
+  --font-sans: "Archivo Variable", Archivo, "Helvetica Neue", Arial, sans-serif;
+  --color-paper: #FFFFFF;
+  --color-stone: #F3F3F0;
+  --color-ink: #000000;
+  --color-body: #3A3A38;
+  --color-muted: #74746E;
+  --color-line: #E2E2DD;
+  --color-cobalt: #1E3DCB;
+  --color-cobalt-700: #142C9C;
+  --color-cobalt-50: #EDF0FC;
   --color-turmeric: #E0A526;
-  --color-neem: #3E7A5A;
-  --color-chilli: #B43C2E;
+  --color-neem: #2F7A4F;
+  --color-chilli: #B83A2B;
+  /* legacy aliases used across components */
+  --color-indigo: #1E3DCB;
+  --color-indigo-700: #142C9C;
+  --color-indigo-50: #EDF0FC;
 }
 
 @layer base {
   html { -webkit-text-size-adjust: 100%; }
-  body { @apply bg-paper text-body font-sans antialiased; font-size: 16px; line-height: 1.6; font-feature-settings: "tnum" 0; }
-  h1, h2, h3 { @apply text-ink; letter-spacing: -0.025em; text-wrap: balance; }
-  h1 { font-weight: 800; }
-  h2, h3 { font-weight: 700; }
-  :focus-visible { outline: 2px solid var(--color-indigo); outline-offset: 2px; border-radius: 4px; }
+  body { @apply bg-paper text-body font-sans antialiased; font-size: 16px; line-height: 1.6; font-variation-settings: "wdth" 100; }
+  h1, h2, h3 { @apply text-ink; text-wrap: balance; }
+  h1, h2 { font-weight: 500; font-variation-settings: "wdth" 118; letter-spacing: -0.035em; line-height: 1.02; }
+  h3 { font-weight: 600; letter-spacing: -0.01em; }
+  p { text-wrap: pretty; }
+  :focus-visible { outline: 2px solid var(--color-cobalt); outline-offset: 2px; }
   svg [role="button"]:focus { outline: none; }
-  ::selection { background: #D6DAF0; }
-  input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+  ::selection { background: #D9DFFA; }
 }
 
 @utility num { font-variant-numeric: tabular-nums; }
+@utility wide { font-variation-settings: "wdth" 118; }
+@utility label { font-size: 12.5px; font-weight: 500; letter-spacing: 0.01em; color: var(--color-muted); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 

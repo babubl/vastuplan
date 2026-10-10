@@ -13,7 +13,7 @@ export interface Rect { x: number; y: number; w: number; h: number }
 
 export type RoomType =
   | "living" | "dining" | "kitchen" | "utility" | "master" | "bedroom" | "toilet" | "dress"
-  | "pooja" | "study" | "stair" | "parking" | "store" | "sitout" | "lounge" | "balcony" | "passage";
+  | "pooja" | "study" | "stair" | "parking" | "store" | "sitout" | "lounge" | "balcony" | "passage" | "courtyard";
 
 export interface Room {
   id: string;
@@ -52,6 +52,8 @@ export interface FloorPlan {
   rooms: Room[];
   openings: Opening[];
   furniture: Furniture[];
+  /** Structural columns (9" x 12"), at wall junctions. */
+  columns?: { x: number; y: number }[];
 }
 
 export interface Setbacks { front: number; rear: number; left: number; right: number }
@@ -70,6 +72,10 @@ export interface HouseInput {
   utility: boolean;
   /** Keep one bedroom on the ground floor (two-storey homes), for parents or guests. */
   groundBedroom: boolean;
+  /** Central courtyard open to the sky (mutram). */
+  courtyard?: boolean;
+  /** Corner plot: the second road's side. */
+  corner?: Facing;
   setbacks?: Setbacks;
 }
 
@@ -83,7 +89,12 @@ export interface Check {
   weight: number;
   /** 0..1 */
   score: number;
+  /** The reasoning behind the rule, so people can judge it for themselves. */
+  why?: string;
+  group?: "vastu" | "corner" | "livability";
 }
+
+export interface SiteService { kind: "sump" | "borewell" | "septic" | "tank" | "rwh" | "generator"; label: string; x: number; y: number; r: number; onRoof?: boolean; why: string }
 
 export interface HouseDesign {
   id: string;
@@ -99,4 +110,5 @@ export interface HouseDesign {
   score: number;
   builtUpArea: number;
   notes: string[];
+  services: SiteService[];
 }

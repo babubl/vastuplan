@@ -53,14 +53,14 @@ export default function AskArchitect({ design }: { design: HouseDesign }) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-3" aria-live="polite">
-        {!msgs.length && <div className="flex flex-wrap gap-2">{STARTERS.map((s) => <button key={s} onClick={() => send(s)} className="rounded-full bg-white px-3 py-1.5 text-[13px] font-medium text-ink ring-1 ring-line hover:ring-indigo">{s}</button>)}</div>}
-        {msgs.map((m, i) => <div key={i} className={cx("flex", m.role === "user" && "justify-end")}><p className={cx("max-w-[90%] whitespace-pre-line rounded-lg px-3.5 py-2.5 text-[14px] leading-relaxed", m.role === "user" ? "bg-ink text-white" : "bg-white text-body ring-1 ring-line")}>{m.text}</p></div>)}
+        {!msgs.length && <div className="flex flex-wrap gap-2">{STARTERS.map((s) => <button key={s} onClick={() => send(s)} className="rounded-full bg-white px-3 py-1.5 text-[13px] font-medium text-ink ring-1 ring-line hover:ring-ink">{s}</button>)}</div>}
+        {msgs.map((m, i) => <div key={i} className={cx("flex", m.role === "user" && "justify-end")}><p className={cx("max-w-[90%] whitespace-pre-line px-3.5 py-2.5 text-[14px] leading-relaxed", m.role === "user" ? "bg-ink text-white" : "bg-white text-body ring-1 ring-line")}>{m.text}</p></div>)}
         {busy && <p className="text-sm text-muted">Looking at your plan…</p>}
       </div>
       <form className="mt-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); send(input); }}>
         <label htmlFor="ask" className="sr-only">Ask about this plan</label>
-        <input id="ask" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about this plan" className="min-w-0 flex-1 rounded-md border border-line bg-white px-3 py-2.5 text-[15px] outline-none focus:border-indigo" />
-        <button type="submit" disabled={busy || !input.trim()} aria-label="Send" className="flex size-11 items-center justify-center rounded-md bg-indigo text-white disabled:opacity-40"><ArrowUp className="size-5" /></button>
+        <input id="ask" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about this plan" className="min-w-0 flex-1 border border-line bg-white px-3 py-2.5 text-[15px] outline-none focus:border-ink" />
+        <button type="submit" disabled={busy || !input.trim()} aria-label="Send" className="flex size-11 items-center justify-center bg-ink text-white disabled:opacity-40"><ArrowUp className="size-5" /></button>
       </form>
     </div>
   );

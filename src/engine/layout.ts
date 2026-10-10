@@ -27,7 +27,7 @@ export interface Placed { key: string; type: RoomType; label: string; u: number;
 interface Alloc { widths: number[]; leftover: number }
 
 /** Share `total` among items: up to ideal, then up to max, then into hubs (or modestly past max). */
-export function allocate(items: { min: number; ideal: number; max: number; hub?: boolean }[], total: number): Alloc | null {
+export function allocate(items: { min: number; ideal: number; max: number; hub?: boolean; cap?: number }[], total: number): Alloc | null {
   const mins = items.reduce((s, i) => s + i.min, 0);
   if (mins > total + 1e-6) return null;
   const w = items.map((i) => i.min);
@@ -44,8 +44,8 @@ export function allocate(items: { min: number; ideal: number; max: number; hub?:
   };
   grow((k) => items[k].ideal);
   grow((k) => items[k].max);
-  if (rem > 1e-6 && items.some((i) => i.hub)) { const r0 = rem; grow((k) => (items[k].hub ? w[k] + r0 : w[k])); }
-  grow((k) => items[k].max * 1.3);
+  if (rem > 1e-6 && items.some((i) => i.hub)) { const r0 = rem; grow((k) => (items[k].hub ? Math.min(w[k] + r0, items[k].cap ?? Infinity) : w[k])); }
+  grow((k) => (items[k].cap ? items[k].max : items[k].max * 1.3));
   return { widths: w, leftover: rem };
 }
 
@@ -84,6 +84,9 @@ export function bandDepths(byBand: Record<Band, Spec[]>, available: number, fixe
 
 const FILLER_MIN = 3;
 
+/** Widest a hall should grow before it reads as a corridor. */
+export const HUB_CAP: Partial<Record<RoomType, number>> = { living: 20, dining: 16, lounge: 16, courtyard: 14 };
+
 function fillerFor(band: Band, spec: Spec, roomIsOuter: boolean): { type: RoomType; label: string; open?: boolean; hub?: boolean } {
   if (band === "front") {
     if (!roomIsOuter) return { type: "sitout", label: "Sit-out", open: true };
@@ -102,11 +105,11 @@ function placeSegment(order: Spec[], suiteLo: Record<string, boolean>, g: BandGe
     return 0;
   }
   // Each suite adds a toilet/dress column as its own flexible item.
-  const items: { min: number; ideal: number; max: number; hub?: boolean }[] = [];
+  const items: { min: number; ideal: number; max: number; hub?: boolean; cap?: number }[] = [];
   const idx: { room: number; col: number }[] = [];
   order.forEach((s) => {
     idx.push({ room: items.length, col: s.suite ? items.length + 1 : -1 });
-    items.push({ min: s.minW, ideal: s.idealW, max: s.maxW, hub: s.hub });
+    items.push({ min: s.minW, ideal: Math.min(s.idealW, HUB_CAP[s.type] ?? Infinity), max: Math.min(s.maxW, HUB_CAP[s.type] ?? Infinity), hub: s.hub, cap: HUB_CAP[s.type] });
     if (s.suite) items.push(SUITE);
   });
   const a = allocate(items, u1 - u0);
@@ -133,7 +136,7 @@ function placeSegment(order: Spec[], suiteLo: Record<string, boolean>, g: BandGe
     const outerLow = g.band === "front";
     const atLow = g.band === "middle" ? !roomIsOuter : roomIsOuter === outerLow;
     const rv = atLow ? g.v : g.v + g.d - rd;
-    out.push({ key: s.key, type: s.type, label: s.label, u: roomU, v: rv, w: rw, d: rd, band: g.band, hub: s.hub, open: s.type === "parking" || s.type === "balcony" });
+    out.push({ key: s.key, type: s.type, label: s.label, u: roomU, v: rv, w: rw, d: rd, band: g.band, hub: s.hub, open: s.type === "parking" || s.type === "balcony" || s.type === "courtyard" });
     if (rd < g.d - 1e-6) {
       const f = fillerFor(g.band, s, roomIsOuter);
       out.push({ key: `${s.key}-fill`, ...f, u: roomU, v: atLow ? g.v + rd : g.v, w: rw, d: g.d - rd, band: g.band, owner: f.hub ? undefined : s.key });
@@ -149,9 +152,15 @@ function placeSegment(order: Spec[], suiteLo: Record<string, boolean>, g: BandGe
     u += rw + cw;
   });
   if (a.leftover > 0.5) {
-    // Width nobody could use becomes a store (or open terrace upstairs) at the end of the segment.
-    const terrace = level > 0 && g.band !== "middle";
-    out.push({ key: `rest-${g.band}-${level}-${u0.toFixed(1)}`, type: terrace ? "balcony" : "store", label: terrace ? "Open terrace" : "Store", u, v: g.v, w: a.leftover, d: g.d, band: g.band, open: terrace });
+    // Width no room should take. In the middle band it becomes a courtyard open to the sky (light and air
+    // for the rooms around it, and an open Brahmasthan); at the front a verandah; otherwise a store.
+    const big = a.leftover >= 8;
+    const kind: { type: RoomType; label: string; open: boolean } =
+      g.band === "middle" && big ? { type: "courtyard", label: level ? "Open to sky" : "Courtyard", open: true }
+      : g.band === "front" && level === 0 ? { type: "sitout", label: "Verandah", open: true }
+      : level > 0 && g.band !== "middle" ? { type: "balcony", label: "Open terrace", open: true }
+      : { type: "store", label: "Store", open: false };
+    out.push({ key: `rest-${g.band}-${level}-${u0.toFixed(1)}`, ...kind, u, v: g.v, w: a.leftover, d: g.d, band: g.band, hub: kind.type === "courtyard" });
   }
   return a.leftover;
 }
@@ -211,35 +220,40 @@ function proxyScore(ctx: Ctx, g: BandGeom, placed: Placed[], order: Spec[], left
 
 export interface BandOption { placed: Placed[]; proxy: number }
 
-/** Best orderings of one band, optionally around a fixed staircase. */
-export function bandOptions(ctx: Ctx, g: BandGeom, specs: Spec[], frontage: number, keep: number, fixed?: { u: number; w: number; placed: Placed }): BandOption[] {
+export interface Fixed { u: number; w: number; placed: Placed }
+
+/** Ways to cut an ordered list into k+1 consecutive groups (k = number of fixed items). */
+function* cuts(n: number, k: number, from = 0): Generator<number[]> {
+  if (k === 0) { yield []; return; }
+  for (let i = from; i <= n; i++) for (const rest of cuts(n, k - 1, i)) yield [i, ...rest];
+}
+
+/** Best orderings of one band, optionally around fixed items (an upper-floor staircase or courtyard). */
+export function bandOptions(ctx: Ctx, g: BandGeom, specs: Spec[], frontage: number, keep: number, fixedIn?: Fixed[]): BandOption[] {
   const results: BandOption[] = [];
   const suiteKeys = specs.filter((s) => s.suite).map((s) => s.key);
   const sideCombos = 1 << suiteKeys.length;
-  const free = specs;
-  const tryOrder = (order: Spec[], split: number) => {
+  const fixed = (fixedIn ?? []).slice().sort((p, q) => p.u - q.u);
+  const tryOrder = (order: Spec[], split: number[]) => {
     for (let mask = 0; mask < sideCombos; mask++) {
       const lo: Record<string, boolean> = {};
       suiteKeys.forEach((k, i) => (lo[k] = !!(mask & (1 << i))));
       const placed: Placed[] = [];
-      let left: number | null;
-      if (fixed) {
-        const l = placeSegment(order.slice(0, split), lo, g, 0, fixed.u, ctx.level, placed);
-        const r = placeSegment(order.slice(split), lo, g, fixed.u + fixed.w, frontage, ctx.level, placed);
-        if (l === null || r === null) continue;
-        placed.push({ ...fixed.placed, v: g.v, d: g.d });
-        left = l + r;
-      } else {
-        left = placeSegment(order, lo, g, 0, frontage, ctx.level, placed);
-        if (left === null) continue;
+      let left = 0, ok = true;
+      let u0 = 0, i0 = 0;
+      for (let f = 0; f <= fixed.length && ok; f++) {
+        const u1 = f < fixed.length ? fixed[f].u : frontage;
+        const i1 = f < fixed.length ? split[f] : order.length;
+        const r = placeSegment(order.slice(i0, i1), lo, g, u0, u1, ctx.level, placed);
+        if (r === null) { ok = false; break; }
+        left += r;
+        if (f < fixed.length) { placed.push({ ...fixed[f].placed, v: g.v, d: g.d }); u0 = fixed[f].u + fixed[f].w; i0 = i1; }
       }
+      if (!ok) continue;
       results.push({ placed, proxy: proxyScore(ctx, g, placed, order, left) });
     }
   };
-  for (const order of permutations(free)) {
-    if (fixed) for (let split = 0; split <= order.length; split++) tryOrder(order, split);
-    else tryOrder(order, 0);
-  }
+  for (const order of permutations(specs)) for (const split of cuts(order.length, fixed.length)) tryOrder(order, split);
   results.sort((a, b) => b.proxy - a.proxy);
   // keep distinct layouts
   const seen = new Set<string>();

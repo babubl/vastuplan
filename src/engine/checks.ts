@@ -1,7 +1,7 @@
 /** Scoring: Vastu guidelines and livability (National Building Code minimums, light, access). */
 import { area, centreOverlap, exteriorEdges, sharedWall } from "./geometry";
-import { DIRECTION_NAME, ENTRANCE_PADAS, ZONES, prefOf } from "./vastu";
-import type { Check, CheckStatus, Facing, FloorPlan, Furniture, Rect, Room, Zone } from "./types";
+import { CORNERS, DIRECTION_NAME, ENTRANCE_PADAS, WHY, ZONES, prefOf } from "./vastu";
+import type { Check, CheckStatus, Facing, FloorPlan, Furniture, HouseInput, Rect, Room, RoomType, Zone } from "./types";
 
 const status = (s: number): CheckStatus => (s >= 0.85 ? "pass" : s >= 0.45 ? "partial" : "fail");
 const zname = (z: Zone) => `${z === "C" ? "centre" : z} (${ZONES[z].name})`;
@@ -121,11 +121,13 @@ export function livabilityChecks(c: CheckInput, wantParking: boolean): Check[] {
   add("sizes", "Rooms meet National Building Code minimums", 10, small.length ? Math.max(0, 1 - small.length * 0.3) : 1, small.length ? `Below the NBC 2016 minimum size: ${[...new Set(small)].join(", ")}.` : "Bedrooms, kitchen and toilets meet the NBC 2016 minimum areas and widths (e.g. 9.5 m² and 2.4 m wide for the main room).");
 
   const needLight = all.filter((r) => ["living", "master", "bedroom", "study", "kitchen"].includes(r.type));
-  const dark = needLight.filter((r) => !exteriorEdges(r.rect, c.footprint).length);
+  const courts = all.filter((r) => r.type === "courtyard");
+  const lit = (r: Room) => exteriorEdges(r.rect, c.footprint).length > 0 || courts.some((k) => sharedWall(k.rect, r.rect));
+  const dark = needLight.filter((r) => !lit(r));
   add("light", "Daylight and air in every habitable room", 10, dark.length ? Math.max(0, 1 - dark.length * 0.35) : 1, dark.length ? `No outside wall for: ${dark.map((r) => r.label).join(", ")}.` : "Every bedroom, the living room and the kitchen has an outside wall for windows.");
 
   const wcs = all.filter((r) => r.type === "toilet");
-  const shut = wcs.filter((r) => !exteriorEdges(r.rect, c.footprint).length);
+  const shut = wcs.filter((r) => !lit(r));
   add("vent", "Toilets can be ventilated", 5, shut.length ? Math.max(0, 1 - shut.length * 0.5) : 1, shut.length ? `${shut.length} toilet(s) without an outside wall would need a duct.` : "Every toilet has an outside wall for a ventilator.");
 
   const dining = all.find((r) => r.type === "dining");
@@ -137,6 +139,11 @@ export function livabilityChecks(c: CheckInput, wantParking: boolean): Check[] {
   const odd = all.filter((r) => !["passage", "store", "balcony", "sitout", "utility", "dress", "toilet", "stair"].includes(r.type) && Math.max(r.rect.w, r.rect.h) / Math.min(r.rect.w, r.rect.h) > 2.1);
   add("shape", "Well-proportioned rooms", 5, odd.length ? Math.max(0.3, 1 - odd.length * 0.25) : 1, odd.length ? `Long and narrow: ${odd.map((r) => r.label).join(", ")}.` : "No room is more than about twice as long as it is wide.");
 
+  const fpArea = area(c.footprint) * c.floors.length;
+  const leftover = all.filter((r) => r.type === "store" || (r.type === "balcony" && r.label === "Open terrace" && c.floors.length === 1)).reduce((a, r) => a + area(r.rect), 0);
+  const waste = leftover / fpArea;
+  add("space", "Space well used", 5, waste < 0.06 ? 1 : waste < 0.12 ? 0.6 : 0.25, waste < 0.06 ? "Almost all of the built area goes to rooms you will use." : `About ${Math.round(waste * 100)}% of the built area is store or leftover space. A narrower house with more garden may suit this plot better.`);
+
   if (wantParking) { const has = all.some((r) => r.type === "parking"); add("parking", "Car parking", 5, has ? 1 : 0, has ? "A covered car parking bay at the front." : "The plot is too narrow for a parking bay alongside the living room; use the front open space."); }
   return out;
 }
@@ -147,3 +154,42 @@ export const scoreOf = (checks: Check[]) => {
 };
 
 export const furnitureOf = (f: FloorPlan[]): Furniture[] => f.flatMap((x) => x.furniture);
+
+const CORNER_AVOID: Record<"NE" | "SE" | "SW" | "NW", RoomType[]> = {
+  NE: ["toilet", "kitchen", "stair", "store", "master", "utility"],
+  SE: ["pooja", "master", "toilet"],
+  SW: ["toilet", "sitout", "parking", "kitchen", "pooja", "utility", "courtyard"],
+  NW: ["master", "pooja"],
+};
+
+/** Corner thumb rules: what occupies each corner of the house, judged against the classic guidance. */
+export function cornerChecks(c: CheckInput, input: HouseInput): Check[] {
+  const out: Check[] = [];
+  const fp = c.footprint;
+  const cell = (z: "NE" | "SE" | "SW" | "NW"): Rect => ({ x: z.endsWith("E") ? fp.x + (fp.w * 2) / 3 : fp.x, y: z.startsWith("S") ? fp.y + (fp.h * 2) / 3 : fp.y, w: fp.w / 3, h: fp.h / 3 });
+  for (const g of CORNERS) {
+    const R = cell(g.zone);
+    const inCorner = c.floors.flatMap((f) => f.rooms).filter((r) => {
+      const ox = Math.max(0, Math.min(r.rect.x + r.rect.w, R.x + R.w) - Math.max(r.rect.x, R.x));
+      const oy = Math.max(0, Math.min(r.rect.y + r.rect.h, R.y + R.h) - Math.max(r.rect.y, R.y));
+      return ox * oy >= Math.min(area(R) * 0.25, area(r.rect) * 0.5);
+    });
+    const bad = [...new Set(inCorner.filter((r) => CORNER_AVOID[g.zone].includes(r.type)).map((r) => r.label))];
+    const names = [...new Set(inCorner.map((r) => r.label))];
+    const score = bad.length ? (bad.length > 1 ? 0.2 : 0.45) : 1;
+    out.push({
+      id: `corner-${g.zone}`, group: "corner", weight: 4, score, status: status(score),
+      title: `${g.zone} corner, ${g.name} (${g.element.toLowerCase()})`,
+      detail: `${names.length ? `Here: ${names.join(", ")}.` : "Open."} ${bad.length ? `Traditionally avoided here: ${bad.join(", ")}.` : `Suits this corner. Best uses: ${g.keep.slice(0, 3).join(", ").toLowerCase()}.`}`,
+      why: `${g.guardian} guards the ${g.zone}, the ${g.element.toLowerCase()} corner. Keep: ${g.keep.join(", ").toLowerCase()}. Avoid: ${g.avoid.join(", ")}. ${g.site}`,
+    });
+  }
+  if (input.corner) {
+    const sides = new Set([input.facing, input.corner]);
+    const kind = sides.has("N") && sides.has("E") ? "NE" : sides.has("S") && sides.has("W") ? "SW" : sides.has("N") && sides.has("W") ? "NW" : "SE";
+    const score = kind === "NE" ? 1 : kind === "SW" ? 0.35 : 0.75;
+    out.push({ id: "corner", group: "corner", weight: 5, score, status: status(score), title: `${kind} corner plot`, why: WHY.corner,
+      detail: kind === "NE" ? "Roads on the north and east: the most auspicious corner plot. Keep the north-east open with a low compound wall." : kind === "SW" ? "Roads on the south and west. Build a higher, solid compound wall on the south and west and keep the main gate in the auspicious padas." : `Roads on the ${kind === "NW" ? "north and west" : "south and east"}: a good plot with care. Keep the gate away from the corner itself.` });
+  }
+  return out;
+}

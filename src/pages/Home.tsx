@@ -1,98 +1,133 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Box, Compass, Palette, Ruler } from "lucide-react";
-import PlanView from "../components/PlanView";
-import { ButtonLink, Container, NumberField, Segmented } from "../components/ui";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowUpRight } from "lucide-react";
+import { Container, NumberField, Segmented } from "../components/ui";
 import { useDesigns } from "../lib/useDesigns";
 import { DEFAULT_INPUT, inputToQuery } from "../lib/share";
+import { renderAxonSvg } from "../render/axonSvg";
+import { renderPlanSvg } from "../render/planSvg";
+import { CORNERS } from "../engine/vastu";
+import studies from "../data/studies.json";
 import type { Facing, HouseInput } from "../engine/types";
 
 const FACING = (["N", "E", "S", "W"] as Facing[]).map((f) => ({ value: f, label: { N: "North", E: "East", S: "South", W: "West" }[f] }));
+const base = import.meta.env.BASE_URL;
 
 export default function Home() {
   const [input, setInput] = useState<HouseInput>(DEFAULT_INPUT);
   const { designs, busy } = useDesigns(input, 150);
   const d = designs?.[0];
+  const nav = useNavigate();
   const set = <K extends keyof HouseInput>(k: K, v: HouseInput[K]) => setInput((i) => ({ ...i, [k]: v }));
+  const axon = useMemo(() => (d ? renderAxonSvg(d, d.floors[0], { wallHeight: 6, showLabels: true }) : ""), [d]);
+  const plan = useMemo(() => (d ? renderPlanSvg(d, d.floors[0], { furniture: true, dims: true, services: true }) : ""), [d]);
+
   return (
     <>
       <section className="border-b border-line">
-        <Container className="grid items-center gap-10 py-10 lg:grid-cols-[0.9fr_1.1fr] lg:py-16">
-          <div>
-            <h1 className="text-[40px] leading-[1.05] sm:text-[56px]">See your house before you build it.</h1>
-            <p className="mt-5 max-w-lg text-[18px] leading-relaxed text-body">Enter your plot size and which way it faces. VastuPlan lays out every room to Vastu, furnishes it to scale, and lets you walk through it in 3D.</p>
-            <div className="mt-8 max-w-md rounded-lg bg-white p-5 ring-1 ring-line">
-              <div className="grid grid-cols-2 gap-3">
-                <NumberField id="hw" label="Plot width along road" value={input.plotWidth} onChange={(v) => set("plotWidth", v)} min={18} max={100} suffix="ft" />
-                <NumberField id="hd" label="Plot depth" value={input.plotDepth} onChange={(v) => set("plotDepth", v)} min={25} max={120} suffix="ft" />
-              </div>
-              <p className="mt-4 text-[13px] font-semibold text-ink">Road on the</p>
-              <div className="mt-1"><Segmented full label="Plot facing" value={input.facing} onChange={(v) => set("facing", v)} options={FACING} /></div>
-              <p className="mt-4 text-[13px] font-semibold text-ink">Bedrooms</p>
-              <div className="mt-1"><Segmented full label="Bedrooms" value={input.bhk} onChange={(v) => set("bhk", v)} options={[1, 2, 3, 4].map((n) => ({ value: n as 1 | 2 | 3 | 4, label: `${n} BHK` }))} /></div>
-              <ButtonLink to={`/design?${inputToQuery(input)}`} className="mt-5 w-full py-3 text-base">Open this plan in the designer</ButtonLink>
-            </div>
-            <p className="mt-4 text-[14px] text-muted">Free. No sign-up. Living in a flat? <Link to="/apartment" className="font-semibold text-indigo">Plan your apartment</Link> instead.</p>
+        <Container className="pt-12 sm:pt-16">
+          <div className="grid gap-8 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
+            <h1 className="text-[44px] sm:text-[76px] lg:text-[88px]">Houses, planned to Vastu, for your plot.</h1>
+            <p className="max-w-md text-[17px] leading-relaxed text-body lg:pb-3">Enter the plot. VastuPlan lays out every room the way an architect would, checks each one against Vastu and the building code, and draws it to scale in plan, axonometric and 3D.</p>
           </div>
-          <div className="relative">
-            <div className="aspect-[4/5] w-full sm:aspect-square">
-              {d ? <PlanView design={d} floor={0} layers={{ furniture: true, grid: false, dims: true }} className="relative h-full w-full" /> : <div className="h-full w-full rounded-lg bg-white ring-1 ring-line" />}
+        </Container>
+        <Container className="mt-10 grid gap-0 border-t border-ink lg:grid-cols-[340px_1fr]">
+          <form className="border-b border-line py-6 lg:border-b-0 lg:border-r lg:pr-8" onSubmit={(e) => { e.preventDefault(); nav(`/design?${inputToQuery(input)}`); }}>
+            <p className="label">Your plot</p>
+            <div className="mt-3 grid grid-cols-2 gap-5">
+              <NumberField id="hw" label="Width along road" value={input.plotWidth} onChange={(v) => set("plotWidth", v)} min={18} max={100} suffix="ft" />
+              <NumberField id="hd" label="Depth" value={input.plotDepth} onChange={(v) => set("plotDepth", v)} min={25} max={120} suffix="ft" />
             </div>
-            {d && (
-              <p className="num mt-3 text-[14px] text-muted">
-                {busy ? "Redrawing…" : <>Best of three layouts for a {input.plotWidth} × {input.plotDepth} ft plot. Vastu {d.vastuScore}/100, livability {d.livabilityScore}/100, {d.builtUpArea} sq ft.</>}
-              </p>
-            )}
-          </div>
+            <p className="mt-6 text-[13px] font-semibold text-ink">Road on the</p>
+            <div className="mt-2"><Segmented full label="Plot facing" value={input.facing} onChange={(v) => set("facing", v)} options={FACING} /></div>
+            <p className="mt-5 text-[13px] font-semibold text-ink">Bedrooms</p>
+            <div className="mt-2"><Segmented full label="Bedrooms" value={input.bhk} onChange={(v) => set("bhk", v)} options={[1, 2, 3, 4].map((n) => ({ value: n as 1 | 2 | 3 | 4, label: `${n} BHK` }))} /></div>
+            <button type="submit" className="mt-7 flex w-full items-center justify-between bg-ink px-5 py-3.5 text-[15px] font-medium text-white transition-colors hover:bg-cobalt">Open in the designer<ArrowUpRight className="size-5" aria-hidden /></button>
+            <p className="mt-4 text-[13px] text-muted">Free, nothing to sign up for. In a flat? <Link to="/apartment" className="text-ink underline underline-offset-2">Plan an apartment</Link>.</p>
+          </form>
+          <figure className="relative min-h-[360px] py-4 lg:pl-8">
+            <div className="h-[min(62vh,620px)] w-full [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: axon }} aria-label="Axonometric drawing of the suggested house" role="img" />
+            <figcaption className="num flex flex-wrap justify-between gap-x-6 gap-y-1 border-t border-line pt-3 text-[13px] text-muted">
+              <span>{busy ? "Drawing…" : `${input.plotWidth} × ${input.plotDepth} ft, ${FACING.find((f) => f.value === input.facing)?.label.toLowerCase()}-facing, ${input.bhk} BHK`}</span>
+              {d && <span>Vastu {d.vastuScore}, livability {d.livabilityScore}, {d.builtUpArea} sq ft built up</span>}
+            </figcaption>
+          </figure>
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
-        <Container>
-          <h2 className="max-w-2xl text-[30px] leading-tight sm:text-[38px]">An architect's first sketch, ready in a second.</h2>
-          <div className="mt-10 grid gap-10 md:grid-cols-2 lg:grid-cols-4">
-            {[
-              [Compass, "Vastu, rule by rule", "Entrance padas, kitchen in the fire zone, master bedroom in the south-west, an open centre. Every rule is scored and explained."],
-              [Ruler, "Drawn to real sizes", "Walls, doors, windows and furniture to scale, checked against National Building Code minimum room sizes."],
-              [Box, "Walk through it in 3D", "Rotate the model, look down from the top, or stand at the main door and look around each room."],
-              [Palette, "Interiors to match", "Six styles, from Chettinad heritage to Japandi, with wall colours chosen for each room's Vastu zone."],
-            ].map(([I, t, b]) => {
-              const Icon = I as typeof Box;
-              return (
-                <div key={t as string}>
-                  <Icon className="size-6 text-indigo" aria-hidden />
-                  <h3 className="mt-4 text-[18px]">{t as string}</h3>
-                  <p className="mt-2 text-[15px] leading-relaxed text-body">{b as string}</p>
+      <section id="studies" className="scroll-mt-16">
+        <Container className="py-16 sm:py-24">
+          <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
+            <h2 className="text-[34px] sm:text-[52px]">Plot studies</h2>
+            <p className="max-w-md text-[16px] text-body">Six common Indian plots, each planned by the engine. Open any study to change it room by room.</p>
+          </div>
+          <div className="mt-10 grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
+            {studies.map((s) => (
+              <Link key={s.id} to={`/design?${inputToQuery(s.input as HouseInput)}`} className="group flex flex-col bg-white p-5 no-underline transition-colors hover:bg-stone">
+                <img src={`${base}studies/${s.id}.svg`} alt={`Axonometric of a ${s.title} plot design`} loading="lazy" className="aspect-[4/3] w-full object-contain" />
+                <div className="mt-4 flex items-baseline justify-between gap-3">
+                  <h3 className="wide text-[19px] font-medium">{s.title}</h3>
+                  <ArrowUpRight className="size-4 shrink-0 text-muted transition-colors group-hover:text-ink" aria-hidden />
                 </div>
-              );
-            })}
+                <p className="mt-1 text-[14px] leading-relaxed text-body">{s.note}</p>
+                <p className="num mt-3 text-[12.5px] text-muted">Vastu {s.vastu}, livability {s.livability}, {s.builtUp} sq ft{s.floors === 2 ? " on two floors" : ""}</p>
+              </Link>
+            ))}
           </div>
         </Container>
       </section>
 
-      <section className="border-y border-line bg-white py-16 sm:py-20">
-        <Container className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
-          <h2 className="text-[30px] leading-tight sm:text-[38px]">From plot to plan in three steps.</h2>
-          <ol className="space-y-8">
-            {[
-              ["Describe your plot and family", "Width, depth, which side the road is on, the number of bedrooms and floors, and extras like a pooja room or parking."],
-              ["Compare three layouts", "Each option is a different arrangement, ranked by Vastu and livability together, so you can see the trade-offs."],
-              ["Explore, refine and share", "Tap any room for its size, zone and interior scheme. Walk through it in 3D, then print or share it with your family and architect."],
-            ].map(([t, b], k) => (
-              <li key={t} className="grid grid-cols-[2.5rem_1fr] gap-4">
-                <span className="num flex size-10 items-center justify-center rounded-full bg-ink text-[15px] font-bold text-white">{k + 1}</span>
-                <div><h3 className="text-[19px]">{t}</h3><p className="mt-1.5 text-[15.5px] leading-relaxed text-body">{b}</p></div>
-              </li>
-            ))}
-          </ol>
+      <section className="border-y border-line bg-stone">
+        <Container className="py-16 sm:py-24">
+          <h2 className="max-w-3xl text-[34px] sm:text-[52px]">One plan, read four ways</h2>
+          <div className="mt-12 grid gap-10 lg:grid-cols-2">
+            <figure>
+              <div className="aspect-[4/3] bg-white p-3 [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: plan }} role="img" aria-label="Floor plan of the suggested house" />
+              <figcaption className="mt-3 text-[14px] text-body"><span className="font-semibold text-ink">For the owner and architect.</span> A dimensioned plan with doors, windows, furniture to scale, and the sump, septic tank and overhead tank where Vastu puts them.</figcaption>
+            </figure>
+            <div className="grid content-start gap-8 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              {[
+                ["For the family", "Walk through the house in 3D from the main door, tap any room for its size and Vastu zone, and compare three layouts."],
+                ["For Vastu", "Every rule with its reasoning, the four corners checked one by one, and the main door placed in the auspicious padas."],
+                ["For the engineer", "A column grid at the wall junctions, beam spans over 15 ft flagged, and an area statement with coverage and FSI."],
+                ["For the mason and contractor", "A door and window schedule, material quantities by common thumb rules, and an indicative cost at your local rate."],
+              ].map(([t, b]) => (
+                <div key={t} className="border-t border-ink pt-4">
+                  <h3 className="text-[17px]">{t}</h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-body">{b}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
-        <Container className="max-w-3xl">
-          <h2 className="text-[26px] leading-tight sm:text-[32px]">Honest about what this is</h2>
-          <p className="mt-4 text-[16.5px] leading-relaxed text-body">VastuPlan gives you a well-reasoned concept plan to start the conversation with your architect and family. Vastu Shastra is traditional guidance; where it conflicts with daylight, ventilation or safety, the plan keeps the house livable and tells you so. Before you build, a licensed architect must prepare approval drawings to your local authority's rules, and a structural engineer must design the structure.</p>
-          <ButtonLink to="/design" className="mt-8 px-6 py-3 text-base">Start with your plot</ButtonLink>
+      <section>
+        <Container className="py-16 sm:py-24">
+          <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
+            <h2 className="text-[34px] sm:text-[52px]">The four corners, at a glance</h2>
+            <p className="max-w-md text-[16px] text-body">The thumb rules people check first. The north-east, not the north-west, is the corner kept lowest, lightest and sacred. <Link to="/corners" className="text-ink underline underline-offset-2">Read the full guide</Link>.</p>
+          </div>
+          <div className="mt-10 grid gap-px border border-ink bg-ink sm:grid-cols-2 lg:grid-cols-4">
+            {CORNERS.map((c) => (
+              <div key={c.zone} className="bg-white p-6">
+                <p className="wide text-[34px] font-medium leading-none text-ink">{c.zone}</p>
+                <p className="mt-2 text-[13px] text-muted">{c.name}, {c.element.toLowerCase()}</p>
+                <p className="mt-5 text-[14px] text-body"><span className="font-semibold text-neem">Keep:</span> {c.keep.slice(0, 3).join(", ").toLowerCase()}.</p>
+                <p className="mt-2 text-[14px] text-body"><span className="font-semibold text-chilli">Avoid:</span> {c.avoid.slice(0, 3).join(", ").toLowerCase()}.</p>
+              </div>
+            ))}
+          </div>
+        </Container>
+      </section>
+
+      <section className="bg-ink">
+        <Container className="grid gap-8 py-16 sm:py-20 lg:grid-cols-[1.25fr_0.75fr] lg:items-end">
+          <p className="wide text-[30px] font-medium leading-[1.1] tracking-[-0.03em] text-white sm:text-[44px]">A concept plan to take to your architect, engineer and family.</p>
+          <div>
+            <p className="text-[15px] leading-relaxed text-white/70">Approval drawings must come from a licensed architect and the structure from a structural engineer, following your local authority's rules.</p>
+            <Link to="/design" className="mt-6 inline-flex items-center gap-2 bg-white px-5 py-3.5 text-[15px] font-medium text-ink no-underline transition-colors hover:bg-turmeric">Start with your plot<ArrowUpRight className="size-5" aria-hidden /></Link>
+          </div>
         </Container>
       </section>
     </>

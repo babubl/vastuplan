@@ -50,6 +50,7 @@ export function groundProgram(i: HouseInput, frontage = 40, depth = 40): Spec[] 
   if (i.utility) p.push(S("utility", "utility", "Utility", ["rear", "middle"], [3.5, 5, 6], [5, 7, 9], "outer", 1, { nearTo: "kitchen" }));
   if (i.pooja) p.push(S("pooja", "pooja", "Pooja", ["front", "middle", "rear"], [4, 5, 6], [4, 5, 6.5], "inner", 2.5));
   if (i.parking) p.push(S("parking", "parking", "Car parking", ["front"], [9.5, 10, 11], [15, 17, 18], "outer", 1.5));
+  if (i.courtyard) p.push(S("court", "courtyard", "Courtyard", ["middle"], [8, 11, 14], [8, 10, 14], "full", 2.5, { hub: true }));
   if (two) p.push(S("stair", "stair", "Staircase", ["middle", "rear", "front"], [7, 7.5, 8], [10.5, 11, 12], "inner", 2.5));
 
   if (!two) {

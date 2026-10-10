@@ -9,7 +9,7 @@ Vastu-aligned concept floor plans for Indian homes. Enter a plot size and facing
 - **Scoring** (`checks.ts`, `vastu.ts`): Vastu rules (entrance, kitchen SE, master SW, pooja NE, toilets, Brahmasthan, stairs, sleeping and cooking direction, open space) and livability (access, NBC 2016 minimum sizes, daylight, ventilation, proportions).
 - **Furniture** (`furniture.ts`) and **interiors** (`interior.ts`): furniture to scale with Vastu orientation; six styles with zone-based wall colours.
 
-`npm test` runs 29 engine tests across facings, plot sizes, BHK and G+1 (rooms tile the footprint, no overlaps, all rooms reachable, furniture inside rooms).
+`npm test` runs the engine tests across facings, plot sizes, BHK and G+1 (rooms tile the footprint, no overlaps, all rooms reachable, furniture inside rooms).
 
 ## Ask the architect (Gemini)
 `worker/` is a Cloudflare Worker that keeps the Gemini key server-side.
@@ -27,3 +27,9 @@ GitHub Pages: Settings → Pages → Source: GitHub Actions. The workflow in `.g
 
 ## Disclaimer
 Concept plans only. Setbacks and FAR vary by authority (CMDA, DTCP, BBMP…). A licensed architect must prepare approval drawings and a structural engineer must design the structure.
+
+## Plot studies
+The homepage studies are drawn by the engine. After changing the engine, regenerate them:
+```
+GEN_STUDIES=1 npx vitest run src/gen
+```
