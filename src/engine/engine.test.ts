@@ -86,4 +86,15 @@ describe("plot-aware design", () => {
     const fp = d.footprint;
     for (const [x, y] of [[fp.x, fp.y], [fp.x + fp.w, fp.y], [fp.x, fp.y + fp.h], [fp.x + fp.w, fp.y + fp.h]]) expect(d.floors[0].columns!.some((c) => Math.abs(c.x - x) < 0.01 && Math.abs(c.y - y) < 0.01)).toBe(true);
   });
+  it("relaxes the brief on a narrow plot instead of giving up, and says what changed", () => {
+    const ds = generate({ ...base, plotWidth: 20, plotDepth: 40, facing: "N", floors: 2, bhk: 3, groundBedroom: false });
+    expect(ds.length).toBeGreaterThan(0);
+    for (const d of ds) expect(d.livability.find((c) => c.id === "access")?.status).toBe("pass");
+    expect(ds[0].adjustments?.length).toBeGreaterThan(0);
+  });
+  it("uses custom setbacks", () => {
+    const d = generate({ ...base, setbacks: { front: 2, rear: 2, left: 1, right: 1 } })[0];
+    expect(d.buildable.w).toBeCloseTo(28);
+    expect(d.buildable.h).toBeCloseTo(36);
+  });
 });

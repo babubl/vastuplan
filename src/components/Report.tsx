@@ -38,6 +38,12 @@ export default function Report({ design }: { design: HouseDesign }) {
         <Score value={design.livabilityScore} label="Livability" size="lg" />
         <div><p className="num wide text-[48px] font-medium leading-none tracking-tight text-ink">{fmtArea(design.builtUpArea).split(" ")[0]}</p><p className="mt-1 text-[13px] text-muted">{fmtArea(0).split(" ").slice(1).join(" ")} built up</p></div>
       </div>
+      {design.adjustments?.length ? (
+        <section className="border-l-2 border-turmeric bg-[#FBF5E6] px-4 py-3">
+          <h3 className="text-[15px]">Changed from your brief so the house fits</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-[13.5px] text-body">{design.adjustments.map((n) => <li key={n}>{n}</li>)}</ul>
+        </section>
+      ) : null}
       <section>
         <h3 className="text-lg">Vastu, rule by rule</h3>
         <p className="mt-1 text-[13.5px] text-muted">Traditional guidelines with their reasoning, so you can judge each one yourself. Where Vastu and daylight disagree, the plan keeps the room livable.</p>

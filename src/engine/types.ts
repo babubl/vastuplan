@@ -110,5 +110,7 @@ export interface HouseDesign {
   score: number;
   builtUpArea: number;
   notes: string[];
+  /** What was changed from the brief so the house fits, in plain words. */
+  adjustments?: string[];
   services: SiteService[];
 }

@@ -37,9 +37,9 @@
       "groundBedroom": false,
       "courtyard": true
     },
-    "vastu": 86,
-    "livability": 100,
-    "builtUp": 1325,
+    "vastu": 92,
+    "livability": 97,
+    "builtUp": 1337,
     "floors": 1
   },
   {
@@ -58,9 +58,9 @@
       "utility": true,
       "groundBedroom": false
     },
-    "vastu": 91,
-    "livability": 98,
-    "builtUp": 1496,
+    "vastu": 90,
+    "livability": 100,
+    "builtUp": 1531,
     "floors": 2
   },
   {
@@ -79,7 +79,7 @@
       "utility": true,
       "groundBedroom": false
     },
-    "vastu": 77,
+    "vastu": 78,
     "livability": 100,
     "builtUp": 963,
     "floors": 1

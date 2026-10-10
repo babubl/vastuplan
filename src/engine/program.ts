@@ -75,6 +75,8 @@ export function firstProgram(i: HouseInput, frontage = 40): Spec[] {
   for (let n = 0; n < upstairs; n++) p.push(S(`bed${n + 2}`, "bedroom", `Bedroom ${n + 2}`, n === 1 ? ["rear", "front", "middle"] : ["rear", "front"], [9.5, 11.5, 14], [10, 11.5, 14], "full", 1.2, { suite: i.bhk >= 3 && suites }));
   if ((i.bhk < 3 || !suites) && upstairs > 0) p.push(S("toilet", "toilet", "Common toilet", ["middle", "rear", "front"], [4.5, 5, 6], [6.5, 7.5, 8.5], "outer", 2.5));
   if (i.study) p.push(S("study", "study", "Study", ["front", "rear"], [8, 9, 11], [8, 9, 11], "inner", 1));
-  p.push(S("balcony", "balcony", "Balcony", ["front"], [6, 10, 30], [4, 5, 6], "outer", 1));
+  // On narrow plots a full-width bedroom row leaves no room for a balcony inside the footprint;
+  // it becomes a cantilever over the front setback instead (see the notes).
+  if (frontage >= 22) p.push(S("balcony", "balcony", "Balcony", ["front"], [6, 10, 30], [4, 5, 6], "outer", 1));
   return p;
 }

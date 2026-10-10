@@ -149,7 +149,17 @@ export default function Designer() {
 
         <div className="relative mt-3 min-h-[60vh] flex-1 lg:min-h-0">
           {!d && busy && <div className="flex h-full min-h-[60vh] items-center justify-center bg-white ring-1 ring-line"><Loader2 className="size-6 animate-spin text-muted" aria-label="Designing" /></div>}
-          {!d && !busy && <div className="flex h-full min-h-[60vh] items-center justify-center bg-white p-8 text-center ring-1 ring-line"><p className="max-w-sm text-body">This plot is too small for the rooms you've chosen. Try fewer bedrooms, two floors, or switch off parking.</p></div>}
+          {!d && !busy && <div className="flex h-full min-h-[60vh] items-center justify-center bg-white p-8 text-center ring-1 ring-line"><div className="max-w-md text-left text-body">
+            <p className="text-[17px] font-semibold text-ink">These rooms don't fit on this plot as a connected house.</p>
+            <p className="mt-2">After setbacks, the area you can build on is about {Math.round(Math.max(0, input.plotWidth - sb.left - sb.right))} × {Math.round(Math.max(0, input.plotDepth - sb.front - sb.rear))} ft. Try:</p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {input.floors === 1 && input.bhk >= 2 && input.plotDepth - sb.front - sb.rear >= 31 && <li><button className="text-cobalt underline" onClick={() => set("floors", 2)}>Ground + 1</button>, with bedrooms upstairs</li>}
+              {input.bhk > 1 && <li><button className="text-cobalt underline" onClick={() => set("bhk", (input.bhk - 1) as 1 | 2 | 3)}>{input.bhk - 1} BHK</button></li>}
+              {input.parking && <li><button className="text-cobalt underline" onClick={() => set("parking", false)}>No covered parking</button></li>}
+              {input.setbacks && <li><button className="text-cobalt underline" onClick={() => setInput((i) => ({ ...i, setbacks: undefined }))}>Typical setbacks</button>, if your authority allows</li>}
+              {input.floors === 2 && input.plotDepth - sb.front - sb.rear < 31 && <li>A two-storey plan needs about 31 ft of buildable depth for a staircase and rooms front and back. On shallower plots, a single-storey 1 BHK works best.</li>}
+            </ul>
+          </div></div>}
           {d && view === "plan" && <PlanView design={d} floor={floor} layers={layers} selected={selected} onSelect={select} className="absolute inset-0" />}
           {d && view === "axon" && <AxonView design={d} floor={floor} className="absolute inset-0" />}
           {d && view === "3d" && <Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-white ring-1 ring-line"><Loader2 className="size-6 animate-spin text-muted" aria-label="Loading 3D" /></div>}><View3D design={d} floor={floor} style={style} selected={selected} onSelect={select} className="absolute inset-0" /></Suspense>}

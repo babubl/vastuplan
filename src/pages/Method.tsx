@@ -17,6 +17,7 @@ export default function Method() {
         <li>Rooms that could go in more than one band are tried in each. Within a band, every order is tried, with real room sizes based on architects' standard ranges.</li>
         <li>Each plan is given doors, a main entrance, windows on outside walls and furniture to scale, then scored. Plans with a room you can't walk into are discarded.</li>
         <li>The three best plans that differ from each other are shown as options A, B and C.</li>
+        <li>If your full brief doesn't fit as a connected house, it is relaxed one step at a time, the way an architect would: a bedroom moves downstairs, then covered parking, the utility room, the courtyard, the study and finally the separate pooja room give way. The plan's notes say exactly what changed and why.</li>
       </ol>
 
       <h2 className="mt-12 text-2xl">The nine zones</h2>

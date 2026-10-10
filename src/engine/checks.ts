@@ -70,7 +70,13 @@ export function vastuChecks(c: CheckInput): Check[] {
 
   // 8. Living
   const l = bestRoom(ground, "living");
-  if (l) { const s = prefOf("living", l.zone); add("living", "Living room in the north or east", 5, s, `Living room in the ${zname(l.zone)}.${s >= 0.85 ? " Good morning light and an open, welcoming zone." : ""}`); }
+  if (l) {
+    let s = prefOf("living", l.zone);
+    // On a south- or west-facing plot the living room has to meet the entrance on the road side.
+    const atRoad = (c.facing === "S" && (l.zone === "S" || l.zone === "SE")) || (c.facing === "W" && (l.zone === "W" || l.zone === "NW"));
+    if (atRoad) s = Math.max(s, 0.6);
+    add("living", "Living room in the north or east", 5, s, `Living room in the ${zname(l.zone)}.${prefOf("living", l.zone) >= 0.85 ? " Good morning light and an open, welcoming zone." : atRoad ? ` On a ${c.facing === "S" ? "south" : "west"}-facing plot the living room sits at the front, by the entrance, the usual and accepted arrangement. Give it windows on the north or east side if it has one, and keep that side light.` : ""}`);
+  }
 
   // 9. Other bedrooms
   const beds = all.filter((r) => r.type === "bedroom");
@@ -80,8 +86,11 @@ export function vastuChecks(c: CheckInput): Check[] {
   const openN = c.footprint.y - c.plot.y, openS = c.plot.y + c.plot.h - (c.footprint.y + c.footprint.h);
   const openW = c.footprint.x - c.plot.x, openE = c.plot.x + c.plot.w - (c.footprint.x + c.footprint.w);
   const ne = openN + openE, sw = openS + openW;
-  add("open", "More open space on the north and east", 5, ne >= sw ? 1 : ne >= sw * 0.75 ? 0.6 : 0.3,
-    `Open space: north ${openN.toFixed(1)} ft, east ${openE.toFixed(1)} ft, south ${openS.toFixed(1)} ft, west ${openW.toFixed(1)} ft. ${ne >= sw ? "More open to the north and east, as Vastu prefers." : "The south and west have more open space than the north and east."}`);
+  // On south- or west-facing plots the building rules make the road-side setback the biggest; that is not a design choice.
+  const roadOpen = c.facing === "S" ? openS : c.facing === "W" ? openW : 0;
+  const rulesOnly = ne < sw && roadOpen > 0 && ne >= sw - roadOpen;
+  add("open", "More open space on the north and east", 5, ne >= sw ? 1 : rulesOnly || ne >= sw * 0.75 ? 0.6 : 0.3,
+    `Open space: north ${openN.toFixed(1)} ft, east ${openE.toFixed(1)} ft, south ${openS.toFixed(1)} ft, west ${openW.toFixed(1)} ft. ${ne >= sw ? "More open to the north and east, as Vastu prefers." : rulesOnly ? `The extra space on the ${c.facing === "S" ? "south" : "west"} is the front setback your building rules require on the road side. Apart from it, the house is kept back from the north and east. Keep the front yard paved low and the north-east planted and open.` : "The south and west have more open space than the north and east."}`);
 
   // 11 & 12 depend on furniture
   const furn = c.floors.flatMap((f) => f.furniture);

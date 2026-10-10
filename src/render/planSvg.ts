@@ -279,7 +279,7 @@ export function renderPlanSvg(d: HouseDesign, floor: FloorPlan, opt: RenderOptio
     const mx = (main.x1 + main.x2) / 2, my = (main.y1 + main.y2) / 2;
     const off = 2.2;
     const [tx, ty] = facing === "N" ? [mx, my - off] : facing === "S" ? [mx, my + off + 0.8] : facing === "E" ? [mx + off + 1.4, my + 0.3] : [mx - off - 1.4, my + 0.3];
-    p.push(`<text x="${n(tx)}" y="${n(ty)}" font-size="0.9" font-weight="700" letter-spacing="0.3" fill="#2E3A87" text-anchor="middle">ENTRY</text>`);
+    p.push(`<text x="${n(tx)}" y="${n(ty)}" font-size="0.9" font-weight="700" letter-spacing="0.3" fill="#2E3A87" stroke="#F5F5F2" stroke-width="0.35" paint-order="stroke" text-anchor="middle">ENTRY</text>`);
   }
 
   // Dimensions of the house

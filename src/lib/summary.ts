@@ -1,8 +1,10 @@
-import { fmtFt } from "../engine/geometry";
 import { ZONES } from "../engine/vastu";
 import type { HouseDesign } from "../engine/types";
 
 /** Plain-text description of a design, for the AI architect and for sharing. */
+// Always feet here: the AI prompt describes sizes in feet whatever unit the page shows.
+const fmtFt = (v: number) => `${+v.toFixed(1)} ft`;
+
 export function summarise(d: HouseDesign): string {
   const i = d.input;
   const lines = [
@@ -10,6 +12,7 @@ export function summarise(d: HouseDesign): string {
     `House footprint ${fmtFt(d.footprint.w)} (east-west) x ${fmtFt(d.footprint.h)} (north-south).`,
     `Scores: Vastu ${d.vastuScore}/100, livability ${d.livabilityScore}/100.`,
   ];
+  if (d.adjustments?.length) lines.push("Changed from the brief so it fits:", ...d.adjustments.map((a) => `- ${a}`));
   for (const f of d.floors) {
     lines.push(`${f.name}:`);
     for (const r of f.rooms) lines.push(`- ${r.label}: ${fmtFt(r.rect.w)} x ${fmtFt(r.rect.h)}, ${r.zone} zone (${ZONES[r.zone].name})`);

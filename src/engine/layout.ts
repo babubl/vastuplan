@@ -275,7 +275,11 @@ export function* assignments(specs: Spec[]): Generator<Record<Band, Spec[]>> {
   const fixedSpecs = specs.filter((s) => s.bands.length === 1 && !s.nextTo);
   const followers = specs.filter((s) => s.nextTo);
   const total = flex.reduce((n, s) => n * s.bands.length, 1);
-  for (let code = 0; code < total; code++) {
+  // Most likely layouts first: each spec lists its preferred band first, so order the codes by how
+  // many specs sit away from their first choice. Searches that run out of time keep the best ideas.
+  const away = (code: number) => { let c = code, n = 0; for (const s of flex) { if (c % s.bands.length) n++; c = Math.floor(c / s.bands.length); } return n; };
+  const codes = Array.from({ length: total }, (_, k) => k).sort((x, y) => away(x) - away(y) || x - y);
+  for (const code of codes) {
     const by: Record<Band, Spec[]> = { front: [], middle: [], rear: [] };
     fixedSpecs.forEach((s) => by[s.bands[0]].push(s));
     let c = code;

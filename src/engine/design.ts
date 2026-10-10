@@ -54,12 +54,14 @@ function* product<T>(lists: T[][]): Generator<T[]> {
   for (const h of head) for (const r of product(rest)) yield [h, ...r];
 }
 
-function searchFloor(ctxBase: Omit<Ctx, "footprint" | "frame">, specs: Spec[], input: HouseInput, plot: Rect, buildable: Rect, opts: { fixedGeoms?: BandGeom[]; footprint?: Rect; fixed?: Placed[]; keep: number }): Candidate[] {
+function searchFloor(ctxBase: Omit<Ctx, "footprint" | "frame">, specs: Spec[], input: HouseInput, plot: Rect, buildable: Rect, opts: { fixedGeoms?: BandGeom[]; footprint?: Rect; fixed?: Placed[]; keep: number; deadline?: number }): Candidate[] {
   const bFrame = localFrame(input.facing, buildable);
   const cache = new Map<string, BandOption[]>();
   const results: Candidate[] = [];
   const seen = new Set<string>();
   for (const by of assignments(specs)) {
+    // Big programmes have thousands of layouts; stop exploring once the time budget is spent.
+    if (opts.deadline && results.length && Date.now() > opts.deadline) break;
     const shapes: { footprint: Rect; geoms: BandGeom[] }[] = [];
     if (opts.fixedGeoms && opts.footprint) shapes.push({ footprint: opts.footprint, geoms: opts.fixedGeoms });
     else {
@@ -122,13 +124,55 @@ function widthsFor(by: Record<Band, Spec[]>, frontage: number): number[] {
   return out;
 }
 
+const connected = (ds: HouseDesign[]) => ds.length > 0 && ds.every((d) => d.livability.find((c) => c.id === "access")?.status === "pass");
+
+/**
+ * Plans for the input. When the full brief does not fit as a connected house, the brief is relaxed
+ * one item at a time, the way an architect would, and the plan says what was dropped and why.
+ */
 export function generate(input: HouseInput, count = 3): HouseDesign[] {
-  const out = generateExact(input, count);
-  if (out.length || !input.parking) return out;
-  // Not enough depth for a covered car bay: plan without it and park in the front open space.
-  const alt = generateExact({ ...input, parking: false }, count);
-  alt.forEach((d) => { d.input = input; d.notes.unshift("A covered car bay did not fit on this plot along with the rooms you asked for, so the plan keeps the front open space for parking."); });
-  return alt;
+  const t0 = Date.now();
+  const first = generateExact(input, count);
+  if (connected(first)) return first;
+  const steps: [keyof HouseInput, string][] = [
+    ["parking", "PARKING"],
+    ["utility", "A separate utility room did not fit, so washing goes in the open yard at the rear or beside the kitchen."],
+    ["courtyard", "A courtyard would have cut off rooms on this plot, so the centre is a covered hall instead. A skylight over it keeps the centre bright."],
+    ["study", "A separate study did not fit; a desk in a bedroom or the living room works for now."],
+    ["pooja", "A separate pooja room did not fit. Set a pooja niche or cabinet on the north-east wall of the living room, facing east."],
+  ];
+  let relaxed: HouseInput = input;
+  const notes: string[] = [];
+  if (input.floors === 2 && !input.groundBedroom && input.bhk >= 2) {
+    relaxed = { ...relaxed, groundBedroom: true };
+    notes.push("All the bedrooms did not fit upstairs on this frontage, so one is on the ground floor, which also suits parents or guests.");
+    const alt = generateExact(relaxed, count);
+    if (connected(alt)) { alt.forEach((d) => { d.input = input; d.adjustments = [...notes]; }); return alt; }
+  }
+  for (const [k, note] of steps) {
+    if (!relaxed[k]) continue;
+    if (Date.now() - t0 > TOTAL_MS) break;
+    relaxed = { ...relaxed, [k]: false };
+    notes.push(note);
+    const alt = generateExact(relaxed, count);
+    if (connected(alt)) {
+      alt.forEach((d) => { d.input = input; d.adjustments = notes.map((n) => (n === "PARKING" ? parkingNote(d) : n)); });
+      return alt;
+    }
+  }
+  return first;
+}
+
+/** Time budget for one ground-floor search, and for the whole relaxing ladder. */
+const SEARCH_MS = 5000, TOTAL_MS = 14000;
+
+/** Where the car goes when a covered bay did not fit: the front yard if it is deep enough, otherwise say so plainly. */
+function parkingNote(d: HouseDesign): string {
+  const { plot, footprint: f } = d, fc = d.input.facing;
+  const front = fc === "N" ? f.y - plot.y : fc === "S" ? plot.y + plot.h - (f.y + f.h) : fc === "E" ? plot.x + plot.w - (f.x + f.w) : f.x - plot.x;
+  return front >= 15
+    ? `A covered car bay did not fit with the rooms you asked for, so the car parks in the ${Math.floor(front)} ft front yard.`
+    : `A car bay did not fit with the rooms you asked for, and the ${Math.floor(front)} ft front yard is too shallow for a car (about 15 ft is needed). Choose Ground + 1 or one bedroom fewer to free space for parking.`;
 }
 
 const footprintFrontage = (i: HouseInput, f: Rect) => (i.facing === "N" || i.facing === "S" ? f.w : f.h);
@@ -136,7 +180,7 @@ const footprintFrontage = (i: HouseInput, f: Rect) => (i.facing === "N" || i.fac
 function generateExact(input: HouseInput, count: number): HouseDesign[] {
   const { plot, buildable } = plotRects(input);
   if (buildable.w < 14 || buildable.h < 14) return [];
-  const ground = searchFloor({ facing: input.facing, level: 0 }, groundProgram(input, frontageOf(input, buildable), input.facing === "N" || input.facing === "S" ? buildable.h : buildable.w), input, plot, buildable, { keep: 14 });
+  const ground = searchFloor({ facing: input.facing, level: 0 }, groundProgram(input, frontageOf(input, buildable), input.facing === "N" || input.facing === "S" ? buildable.h : buildable.w), input, plot, buildable, { keep: 14, deadline: Date.now() + SEARCH_MS });
   const designs: HouseDesign[] = [];
   for (const g of ground) {
     const floors: FloorPlan[] = [];
@@ -165,7 +209,7 @@ function generateExact(input: HouseInput, count: number): HouseDesign[] {
     const builtUpArea = Math.round(floors.reduce((s, f) => s + f.rooms.filter((r) => !(r.open && r.type !== "parking")).reduce((a, r) => a + area(r.rect), 0), 0));
     designs.push({
       id: "", input, plot, buildable, footprint: g.footprint, floors, vastu, livability, vastuScore, livabilityScore,
-      score: Math.round(0.55 * vastuScore + 0.45 * livabilityScore), builtUpArea, notes: notesFor(input, livability), services: servicesFor(plot, g.footprint),
+      score: Math.round(0.55 * vastuScore + 0.45 * livabilityScore), builtUpArea, notes: notesFor(input, livability), services: servicesFor(plot, g.footprint, input.facing, g.openings.mainDoor && { x: (g.openings.mainDoor.x1 + g.openings.mainDoor.x2) / 2, y: (g.openings.mainDoor.y1 + g.openings.mainDoor.y2) / 2 }),
     });
   }
   designs.sort((a, b) => b.score - a.score);
@@ -192,6 +236,7 @@ function notesFor(i: HouseInput, liv: { id: string; score: number }[]): string[]
     "Underground sump or borewell: north-east. Septic tank: north-west, away from the north-east.",
     "Keep the north-east of the plot lowest and most open; slope the ground and roof drainage towards it.",
   ];
+  if (i.floors === 2 && i.plotWidth - 3 < 22) n.push("On a narrow plot the first-floor balcony is best built as a 3 to 4 ft cantilever over the front setback, where local rules allow projections.");
   if (i.parking && liv.find((c) => c.id === "parking" && c.score < 1)) n.push("Parking did not fit inside the house on this frontage. The front open space can take a car if the front setback is 15 ft or more.");
   return n;
 }
