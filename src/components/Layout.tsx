@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import Logo from "./Logo";
+import FeedbackButton from "./Feedback";
 import { Container, cx } from "./ui";
 
 const NAV = [["/design", "Design a house"], ["/apartment", "Apartments"], ["/corners", "Vastu guide"], ["/method", "Method"]] as const;
@@ -16,7 +17,7 @@ export default function Layout() {
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2">Skip to content</a>
       <header className="no-print sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur">
         <Container className={cx("flex h-16 items-center gap-8", app && "max-w-none")}>
-          <Logo />
+          <div className="flex items-center gap-2.5"><Logo /><Link to="/legal" title="VastuPlan is in public beta" className="border border-ink px-1.5 py-px text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink no-underline">Beta</Link></div>
           <nav className="ml-auto hidden items-center gap-7 md:flex" aria-label="Main">
             {NAV.map(([to, l]) => <NavLink key={to} to={to} className={({ isActive }) => cx("border-b py-1 text-[15px] no-underline transition-colors", isActive ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink")}>{l}</NavLink>)}
           </nav>
@@ -34,7 +35,8 @@ export default function Layout() {
             </div>
             <div><p className="font-semibold text-ink">Design</p><ul className="mt-3 space-y-2"><li><Link to="/design" className="text-muted no-underline hover:text-ink">House on a plot</Link></li><li><Link to="/apartment" className="text-muted no-underline hover:text-ink">Apartment</Link></li><li><Link to="/#studies" className="text-muted no-underline hover:text-ink">Plot studies</Link></li></ul></div>
             <div><p className="font-semibold text-ink">Learn</p><ul className="mt-3 space-y-2"><li><Link to="/corners" className="text-muted no-underline hover:text-ink">Vastu guide and corners</Link></li><li><Link to="/method" className="text-muted no-underline hover:text-ink">How plans are made</Link></li></ul></div>
-            <div><p className="font-semibold text-ink">Before you build</p><p className="mt-3 text-muted">Concept plans only. A licensed architect prepares approval drawings; a structural engineer designs the structure.</p></div>
+            <div><p className="font-semibold text-ink">Before you build</p><p className="mt-3 text-muted">Concept plans only. A licensed architect prepares approval drawings; a structural engineer designs the structure.</p>
+              <ul className="mt-4 space-y-2"><li><Link to="/legal" className="text-muted no-underline hover:text-ink">Terms of use</Link></li><li><Link to="/legal#privacy" className="text-muted no-underline hover:text-ink">Privacy</Link></li><li><FeedbackButton label="Send feedback" className="flex items-center gap-1.5 font-semibold text-ink hover:text-cobalt" /></li></ul></div>
           </Container>
         </footer>
       )}

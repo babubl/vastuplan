@@ -8,6 +8,7 @@ export function inputToQuery(i: HouseInput): string {
   const p = new URLSearchParams();
   KEYS.forEach((k) => { const v = i[k]; if (v === undefined) return; p.set(k, typeof v === "boolean" ? (v ? "1" : "0") : String(v)); });
   if (i.corner) p.set("corner", i.corner);
+  if (i.setbacks) { p.set("sbF", String(i.setbacks.front)); p.set("sbR", String(i.setbacks.rear)); p.set("sbS", String(i.setbacks.left)); }
   return p.toString();
 }
 
@@ -23,6 +24,7 @@ export function inputFromQuery(q: string): HouseInput {
     floors: num("floors", d.floors, 1, 2) as 1 | 2, bhk: num("bhk", d.bhk, 1, 4) as 1 | 2 | 3 | 4,
     pooja: bool("pooja", d.pooja), study: bool("study", d.study), parking: bool("parking", d.parking), utility: bool("utility", d.utility), groundBedroom: bool("groundBedroom", d.groundBedroom),
     courtyard: bool("courtyard", false),
+    setbacks: p.has("sbF") ? ((sbS) => ({ front: num("sbF", 5, 0, 30), rear: num("sbR", 3, 0, 20), left: sbS, right: sbS }))(num("sbS", 3, 0, 15)) : undefined,
     corner: ((c) => (c === "N" || c === "E" || c === "S" || c === "W" ? c : undefined))(p.get("corner")),
   };
 }

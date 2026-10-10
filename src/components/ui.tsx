@@ -42,10 +42,11 @@ export function NumberField({ id, label, value, onChange, min, max, step = 1, su
   const [focused, setFocused] = useState(false);
   useEffect(() => { if (!focused) setText(String(value)); }, [value, focused]);
   const n = Number(text);
+  const dec = step < 1 ? (String(step).split(".")[1]?.length ?? 1) : 0;
   const valid = text.trim() !== "" && Number.isFinite(n) && n >= min && n <= max;
   const commit = () => {
     if (text.trim() === "" || !Number.isFinite(n)) { setText(String(value)); return; }
-    const c = Math.max(min, Math.min(max, Math.round(n / step) * step));
+    const c = +Math.max(min, Math.min(max, Math.round(n / step) * step)).toFixed(dec);
     setText(String(c));
     if (c !== value) onChange(c);
   };
@@ -53,13 +54,13 @@ export function NumberField({ id, label, value, onChange, min, max, step = 1, su
     <label htmlFor={id} className="block">
       <span className="text-[13px] font-semibold text-ink">{label}</span>
       <span className="relative mt-1 block">
-        <input id={id} type="text" inputMode="numeric" pattern="[0-9]*" value={text} aria-invalid={!valid}
+        <input id={id} type="text" inputMode={dec ? "decimal" : "numeric"} value={text} aria-invalid={!valid}
           onFocus={(e) => { setFocused(true); e.currentTarget.select(); }}
           onChange={(e) => { const t = e.target.value.replace(/[^0-9.]/g, ""); setText(t); const v = Number(t); if (t !== "" && Number.isFinite(v) && v >= min && v <= max) onChange(v); }}
           onBlur={() => { setFocused(false); commit(); }}
           onKeyDown={(e) => {
             if (e.key === "Enter") (e.currentTarget as HTMLInputElement).blur();
-            if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); const c = Math.max(min, Math.min(max, (Number(text) || value) + (e.key === "ArrowUp" ? step : -step))); setText(String(c)); onChange(c); }
+            if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); const c = +Math.max(min, Math.min(max, (Number(text) || value) + (e.key === "ArrowUp" ? step : -step))).toFixed(dec); setText(String(c)); onChange(c); }
           }}
           className={cx("num w-full rounded-none border-0 border-b bg-transparent px-0 py-2 pr-8 text-[17px] text-ink outline-none transition-colors focus:border-ink", valid ? "border-line" : "border-chilli")} />
         {suffix && <span className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-sm text-muted">{suffix}</span>}

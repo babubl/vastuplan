@@ -113,12 +113,12 @@ export function livabilityChecks(c: CheckInput, wantParking: boolean): Check[] {
   const small: string[] = [];
   habit.forEach((r, i) => {
     const a = area(r.rect) / SQM, minSide = Math.min(r.rect.w, r.rect.h) * 0.3048;
-    if (a < (i === 0 ? 9.5 : 7.5) || minSide < 2.4) small.push(r.label);
+    if (a < (i === 0 ? 9.5 : 7.5) || minSide < (i === 0 ? 2.4 : 2.1)) small.push(r.label);
   });
   const kit = all.find((r) => r.type === "kitchen");
   if (kit && (area(kit.rect) / SQM < 5 || Math.min(kit.rect.w, kit.rect.h) * 0.3048 < 1.8)) small.push("Kitchen");
   all.filter((r) => r.type === "toilet").forEach((t) => { if (area(t.rect) / SQM < 2.8 || Math.min(t.rect.w, t.rect.h) * 0.3048 < 1.2) small.push(t.label); });
-  add("sizes", "Rooms meet National Building Code minimums", 10, small.length ? Math.max(0, 1 - small.length * 0.3) : 1, small.length ? `Below the NBC 2016 minimum size: ${[...new Set(small)].join(", ")}.` : "Bedrooms, kitchen and toilets meet the NBC 2016 minimum areas and widths (e.g. 9.5 m² and 2.4 m wide for the main room).");
+  add("sizes", "Rooms meet National Building Code minimums", 10, small.length ? Math.max(0, 1 - small.length * 0.3) : 1, small.length ? `Below the NBC 2016 minimum size: ${[...new Set(small)].join(", ")}.` : "Bedrooms, kitchen and toilets meet the NBC 2016 minimum areas and widths (main room 9.5 m² and 2.4 m wide, other rooms 7.5 m² and 2.1 m wide).");
 
   const needLight = all.filter((r) => ["living", "master", "bedroom", "study", "kitchen"].includes(r.type));
   const courts = all.filter((r) => r.type === "courtyard");

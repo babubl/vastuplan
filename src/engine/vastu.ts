@@ -44,12 +44,14 @@ export const prefOf = (t: RoomType, z: Zone) => PREF[t][z] ?? 0.5;
  * Auspicious main-door positions in the 32-pada scheme (8 padas per side), counted clockwise from
  * the corner each side starts at: East from NE, South from SE, West from SW, North from NW.
  * East: Jayant and Indra (E3–E4). South: Vitatha and Grihakshat (S3–S4).
- * West: Sugreeva and Pushpadanta (W3–W4). North: Mukhya, Bhallat and Soma (N3–N5).
+ * West: Sugreeva to Varuna (W3–W5; the Brihat Samhita, ch. 53, favours W4–W5, popular practice W3–W4).
+ * North: Mukhya, Bhallat and Soma (N3–N5). South: the Brihat Samhita lists no auspicious pada; popular
+ * practice uses Vitatha and Grihakshat (S3–S4), which is what a south-facing plot is given here.
  */
 export const ENTRANCE_PADAS: Record<Facing, { from: number; to: number; names: string }> = {
   E: { from: 2 / 8, to: 4 / 8, names: "Jayant and Indra (E3–E4)" },
   S: { from: 2 / 8, to: 4 / 8, names: "Vitatha and Grihakshat (S3–S4)" },
-  W: { from: 2 / 8, to: 4 / 8, names: "Sugreeva and Pushpadanta (W3–W4)" },
+  W: { from: 2 / 8, to: 5 / 8, names: "Sugreeva, Pushpadanta and Varuna (W3–W5)" },
   N: { from: 2 / 8, to: 5 / 8, names: "Mukhya, Bhallat and Soma (N3–N5)" },
 };
 
@@ -71,7 +73,7 @@ export const DIRECTION_NAME: Record<Facing, string> = { N: "north", E: "east", S
  * the guardian of each direction, and the path of the sun in India. Shown with every check.
  */
 export const WHY: Record<string, string> = {
-  entrance: "The 32 padas around a house each carry a deity. The auspicious padas welcome energy and morning light at the door; corners and the south-west padas are avoided. A door on the north-east half of an east or north wall also catches the early sun.",
+  entrance: "The 32 padas around a house each carry a deity (Brihat Samhita, chapter 53). The classical text favours Jayanta and Indra on the east (E3–E4), Mukhya, Bhallata and Soma on the north (N3–N5) and Pushpadanta and Varuna on the west (W4–W5). It names no auspicious pada on the south; popular practice uses Vitatha and Grihakshat (S3–S4). Corners are always avoided.",
   kitchen: "The south-east (Agneya) is ruled by Agni, the fire element. Cooking there aligns fire with fire, and the morning sun from the east dries and lights the kitchen. North-west, the air corner, is the accepted alternative because air feeds fire.",
   master: "The south-west (Nairutya) is the earth element: the heaviest, most stable corner, ruled by Nirrti. It is meant for the head of the family, giving stability and authority. Thick walls on the south and west also shield this room from the hot afternoon sun.",
   pooja: "The north-east (Ishanya) is ruled by Ishana, a form of Shiva, and holds the water element. It is the most sacred corner: kept the lightest, lowest, cleanest and most open. Praying here, facing east, faces the rising sun.",

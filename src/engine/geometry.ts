@@ -79,7 +79,16 @@ export function toCompass(f: LocalFrame, u: number, v: number, w: number, d: num
   }
 }
 
+/** Display unit for lengths and areas. The engine always works in feet; this only changes labels. */
+let unit: "ft" | "m" = "ft";
+export const setDisplayUnit = (u: "ft" | "m") => { unit = u; };
+export const displayUnit = () => unit;
+export const FT_PER_M = 1 / 0.3048;
+export const SQFT_PER_SQM = 10.7639;
+/** Area label in the current unit, e.g. "1,240 sq ft" or "115 m²". */
+export const fmtArea = (sqft: number) => unit === "m" ? `${Math.round(sqft / SQFT_PER_SQM).toLocaleString("en-IN")} m²` : `${Math.round(sqft).toLocaleString("en-IN")} sq ft`;
 export const fmtFt = (ft: number) => {
+  if (unit === "m") return `${(ft * 0.3048).toFixed(2)} m`;
   const whole = Math.floor(ft + 1e-6);
   const inches = Math.round((ft - whole) * 12);
   return inches === 12 ? `${whole + 1}'` : inches ? `${whole}'${inches}"` : `${whole}'`;

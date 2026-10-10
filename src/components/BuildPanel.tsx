@@ -1,3 +1,4 @@
+import { fmtArea } from "../engine/geometry";
 import { useState } from "react";
 import { areaStatement, COST_TIERS, openingSchedule, quantities } from "../engine/estimate";
 import type { HouseDesign } from "../engine/types";
@@ -22,7 +23,7 @@ export default function BuildPanel({ design }: { design: HouseDesign }) {
         <h3 className="text-lg">Area statement</h3>
         <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3">
           {[["Plot", a.plotArea], ["Plinth, per floor", a.plinth], ["Built-up, all floors", a.builtUp], ["Carpet area", a.carpet]].map(([k, v]) => (
-            <div key={k as string}><dt className="text-[12.5px] text-muted">{k}</dt><dd className="num wide text-[22px] font-medium text-ink">{(v as number).toLocaleString("en-IN")} <span className="text-[13px] text-muted">sq ft</span></dd></div>
+            <div key={k as string}><dt className="text-[12.5px] text-muted">{k}</dt><dd className="num wide text-[22px] font-medium text-ink">{fmtArea(v as number).split(" ")[0]} <span className="text-[13px] text-muted">{fmtArea(0).split(" ").slice(1).join(" ")}</span></dd></div>
           ))}
         </dl>
         <p className="mt-3 text-muted">Ground coverage {a.coverage}% of the plot. Floor space index (FSI) {a.fsi}. Check both against your local authority's limits.</p>

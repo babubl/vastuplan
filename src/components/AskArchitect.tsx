@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import { ArrowUp } from "lucide-react";
 import { config, aiEnabled } from "../config";
@@ -62,6 +63,7 @@ export default function AskArchitect({ design }: { design: HouseDesign }) {
         <input id="ask" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about this plan" className="min-w-0 flex-1 border border-line bg-white px-3 py-2.5 text-[15px] outline-none focus:border-ink" />
         <button type="submit" disabled={busy || !input.trim()} aria-label="Send" className="flex size-11 items-center justify-center bg-ink text-white disabled:opacity-40"><ArrowUp className="size-5" /></button>
       </form>
+      <p className="mt-2 text-[12px] text-muted">{aiEnabled ? <>Answers come from Google Gemini, which sees your question and a summary of this plan. AI can be wrong; check with your architect. <Link to="/legal#privacy" className="text-cobalt">Privacy</Link></> : "Answers are drawn from this plan's own checks."}</p>
     </div>
   );
 }

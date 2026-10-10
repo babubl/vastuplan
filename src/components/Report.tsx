@@ -1,3 +1,4 @@
+import { fmtArea } from "../engine/geometry";
 import { useState } from "react";
 import { Check as CheckIcon, ChevronDown, Info, TriangleAlert, X } from "lucide-react";
 import type { Check, HouseDesign } from "../engine/types";
@@ -35,7 +36,7 @@ export default function Report({ design }: { design: HouseDesign }) {
       <div className="flex flex-wrap gap-x-10 gap-y-4">
         <Score value={design.vastuScore} label="Vastu" size="lg" />
         <Score value={design.livabilityScore} label="Livability" size="lg" />
-        <div><p className="num wide text-[48px] font-medium leading-none tracking-tight text-ink">{design.builtUpArea}</p><p className="mt-1 text-[13px] text-muted">sq ft built up</p></div>
+        <div><p className="num wide text-[48px] font-medium leading-none tracking-tight text-ink">{fmtArea(design.builtUpArea).split(" ")[0]}</p><p className="mt-1 text-[13px] text-muted">{fmtArea(0).split(" ").slice(1).join(" ")} built up</p></div>
       </div>
       <section>
         <h3 className="text-lg">Vastu, rule by rule</h3>

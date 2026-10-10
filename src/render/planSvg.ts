@@ -3,7 +3,7 @@
  * thick outer walls, thin partitions, door swings, glazed windows, furniture to scale,
  * dimension chains, a north arrow and the road.
  */
-import { fmtFt } from "../engine/geometry";
+import { displayUnit, fmtFt, FT_PER_M } from "../engine/geometry";
 import { ZONES } from "../engine/vastu";
 import type { FloorPlan, Furniture, HouseDesign, Opening, Rect, Room, RoomType } from "../engine/types";
 
@@ -295,7 +295,9 @@ export function renderPlanSvg(d: HouseDesign, floor: FloorPlan, opt: RenderOptio
   p.push(`<g><circle cx="${n(na.x)}" cy="${n(na.y)}" r="1.9" fill="none" stroke="${INK}" stroke-width="0.07"/><path d="M ${n(na.x)} ${n(na.y - 1.6)} L ${n(na.x + 0.7)} ${n(na.y + 0.9)} L ${n(na.x)} ${n(na.y + 0.45)} L ${n(na.x - 0.7)} ${n(na.y + 0.9)} Z" fill="${INK}"/><text x="${n(na.x)}" y="${n(na.y - 2.3)}" font-size="1" font-weight="700" text-anchor="middle" fill="${INK}">N</text></g>`);
   // Scale bar (10 ft)
   const sb = { x: facing === "W" ? vb.x + road + 1.2 : vb.x + 1.2, y: facing === "S" ? vb.y + vb.h - road - 1.2 : vb.y + vb.h - 1.2 };
-  p.push(rect({ x: sb.x, y: sb.y - 0.25, w: 5, h: 0.25 }, `fill="${INK}"`) + rect({ x: sb.x + 5, y: sb.y - 0.25, w: 5, h: 0.25 }, `fill="none" stroke="${INK}" stroke-width="0.05"`) + `<text x="${n(sb.x)}" y="${n(sb.y - 0.6)}" font-size="0.8" fill="${INK}">0</text><text x="${n(sb.x + 10)}" y="${n(sb.y - 0.6)}" font-size="0.8" fill="${INK}" text-anchor="middle">10 ft</text>`);
+  const metric = displayUnit() === "m";
+  const L = metric ? 3 * FT_PER_M : 10, half = L / 2;
+  p.push(rect({ x: sb.x, y: sb.y - 0.25, w: half, h: 0.25 }, `fill="${INK}"`) + rect({ x: sb.x + half, y: sb.y - 0.25, w: half, h: 0.25 }, `fill="none" stroke="${INK}" stroke-width="0.05"`) + `<text x="${n(sb.x)}" y="${n(sb.y - 0.6)}" font-size="0.8" fill="${INK}">0</text><text x="${n(sb.x + L)}" y="${n(sb.y - 0.6)}" font-size="0.8" fill="${INK}" text-anchor="middle">${metric ? "3 m" : "10 ft"}</text>`);
   p.push(`</svg>`);
   return p.join("");
 }

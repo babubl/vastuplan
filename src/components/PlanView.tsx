@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState, type PointerEvent as RPE, type WheelEvent as RWE } from "react";
 import { Maximize2, Minus, Plus } from "lucide-react";
 import { planViewBox, renderPlanSvg } from "../render/planSvg";
-import { fmtFt } from "../engine/geometry";
+import { fmtArea, fmtFt } from "../engine/geometry";
+import { useUnit } from "../lib/units";
 import type { HouseDesign } from "../engine/types";
 import { cx } from "./ui";
 
@@ -11,7 +12,8 @@ export default function PlanView({ design, floor, layers, selected, onSelect, cl
   design: HouseDesign; floor: number; layers: Layers; selected?: string | null; onSelect?: (id: string | null) => void; className?: string;
 }) {
   const f = design.floors[Math.min(floor, design.floors.length - 1)];
-  const svg = useMemo(() => renderPlanSvg(design, f, { furniture: layers.furniture, vastuGrid: layers.grid, dims: layers.dims, services: layers.services, columns: layers.columns }), [design, f, layers.furniture, layers.grid, layers.dims, layers.services, layers.columns]);
+  const unit = useUnit();
+  const svg = useMemo(() => renderPlanSvg(design, f, { furniture: layers.furniture, vastuGrid: layers.grid, dims: layers.dims, services: layers.services, columns: layers.columns }), [design, f, layers.furniture, layers.grid, layers.dims, layers.services, layers.columns, unit]);
   const vb = planViewBox(design);
   const [view, setView] = useState({ s: 1, x: 0, y: 0 });
   const [hover, setHover] = useState<string | null>(null);
@@ -92,7 +94,7 @@ export default function PlanView({ design, floor, layers, selected, onSelect, cl
       </div>
       {hovered && (
         <div className="pointer-events-none absolute left-3 top-3 bg-ink px-2.5 py-1.5 text-[13px] text-white">
-          <span className="font-semibold">{hovered.label}</span> <span className="num text-white/70">{fmtFt(hovered.rect.w)} × {fmtFt(hovered.rect.h)}, {Math.round(hovered.rect.w * hovered.rect.h)} sq ft</span>
+          <span className="font-semibold">{hovered.label}</span> <span className="num text-white/70">{fmtFt(hovered.rect.w)} × {fmtFt(hovered.rect.h)}, {fmtArea(hovered.rect.w * hovered.rect.h)}</span>
         </div>
       )}
       <div className="no-print absolute bottom-3 right-3 flex overflow-hidden border border-ink bg-white">

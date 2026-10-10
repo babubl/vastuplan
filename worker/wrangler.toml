@@ -4,6 +4,9 @@ compatibility_date = "2026-09-01"
 
 [vars]
 GEMINI_MODEL = "gemini-flash-latest"
+# Only these sites may call the worker. Add your custom domain here when you have one.
 ALLOWED_ORIGINS = "https://babubl.github.io,http://localhost:5173"
 
-# npx wrangler secret put GEMINI_API_KEY
+# Secrets (set automatically by .github/workflows/deploy.yml from GitHub secrets):
+#   GEMINI_API_KEY, FEEDBACK_ADMIN_TOKEN (optional)
+# The FEEDBACK KV namespace is created and bound by the workflow.

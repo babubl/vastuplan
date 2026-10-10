@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Box, Download, Layers3, Link2, Loader2, Map as MapIcon, Printer } from "lucide-react";
 import PlanView, { type Layers } from "../components/PlanView";
 import RoomPanel from "../components/RoomPanel";
@@ -13,6 +13,9 @@ import { NumberField, Segmented, Toggle, cx } from "../components/ui";
 import { useDesigns } from "../lib/useDesigns";
 import { inputFromQuery, inputToQuery } from "../lib/share";
 import { defaultSetbacks } from "../engine/design";
+import { FT_PER_M } from "../engine/geometry";
+import { setUnit, useUnit } from "../lib/units";
+import FeedbackButton from "../components/Feedback";
 import { styleById, type StyleId } from "../engine/interior";
 import { renderPlanSvg } from "../render/planSvg";
 import type { Facing, HouseInput } from "../engine/types";
@@ -46,7 +49,17 @@ export default function Designer() {
     if (next.corner && (next.corner === next.facing || next.corner === opposite[next.facing])) next.corner = undefined;
     return next;
   });
-  const sb = defaultSetbacks(input);
+  const sb = input.setbacks ?? defaultSetbacks(input);
+  const unit = useUnit();
+  const metric = unit === "m";
+  // length fields show the chosen unit; the engine always gets feet
+  const toU = (ft: number) => (metric ? +(ft / FT_PER_M).toFixed(1) : ft);
+  const toFt = (v: number) => (metric ? +(v * FT_PER_M).toFixed(1) : v);
+  const lim = (lo: number, hi: number) => (metric ? { min: +(lo / FT_PER_M).toFixed(1), max: +(hi / FT_PER_M).toFixed(1), step: 0.1 } : { min: lo, max: hi, step: lo < 1 || hi < 31 ? 0.5 : 1 });
+  const setSb = (k: "front" | "rear" | "side", v: number) => setInput((i) => {
+    const cur = i.setbacks ?? defaultSetbacks(i);
+    return { ...i, setbacks: k === "side" ? { ...cur, left: v, right: v } : { ...cur, [k]: v } };
+  });
   const select = (id: string | null) => { setSelected(id); if (id) { setTab("room"); const lvl = Number(id.split("-")[0]); if (!Number.isNaN(lvl)) setFloor(lvl); } else if (tab === "room") setTab("report"); };
 
   const download = () => {
@@ -70,12 +83,26 @@ export default function Designer() {
     <div className="lg:grid lg:h-[calc(100vh-4rem)] lg:grid-cols-[300px_1fr_380px]">
       {/* Inputs */}
       <aside className="no-print border-b border-line bg-white px-5 py-5 lg:overflow-y-auto lg:border-b-0 lg:border-r">
-        <h1 className="text-[22px] leading-tight">Your plot</h1>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <NumberField id="w" label="Width along road" value={input.plotWidth} onChange={(v) => set("plotWidth", v)} min={18} max={100} suffix="ft" />
-          <NumberField id="d" label="Depth" value={input.plotDepth} onChange={(v) => set("plotDepth", v)} min={25} max={120} suffix="ft" />
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-[22px] leading-tight">Your plot</h1>
+          <Segmented label="Units" value={unit} onChange={setUnit} options={[{ value: "ft", label: "feet" }, { value: "m", label: "metres" }]} />
         </div>
-        <p className="mt-2 text-[12.5px] text-muted">Setbacks used: front {sb.front} ft, rear {sb.rear} ft, sides {sb.left} ft. Check your local authority's rules.</p>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <NumberField key={`w${unit}`} id="w" label="Width along road" value={toU(input.plotWidth)} onChange={(v) => set("plotWidth", toFt(v))} {...lim(18, 100)} step={metric ? 0.1 : 1} suffix={unit} />
+          <NumberField key={`d${unit}`} id="d" label="Depth" value={toU(input.plotDepth)} onChange={(v) => set("plotDepth", toFt(v))} {...lim(25, 120)} step={metric ? 0.1 : 1} suffix={unit} />
+        </div>
+        <details className="group mt-3 border-y border-line py-2" open={!!input.setbacks}>
+          <summary className="flex cursor-pointer list-none items-center justify-between text-[13px]">
+            <span><span className="font-semibold text-ink">Setbacks</span> <span className="num text-muted">front {toU(sb.front)}, rear {toU(sb.rear)}, sides {toU(sb.left)} {unit}{input.setbacks ? "" : " (typical)"}</span></span>
+            <span className="text-cobalt group-open:hidden">Edit</span>
+          </summary>
+          <div className="mt-3 grid grid-cols-3 gap-3">
+            <NumberField key={`sf${unit}`} id="sbf" label="Front" value={toU(sb.front)} onChange={(v) => setSb("front", toFt(v))} {...lim(0, 30)} suffix={unit} />
+            <NumberField key={`sr${unit}`} id="sbr" label="Rear" value={toU(sb.rear)} onChange={(v) => setSb("rear", toFt(v))} {...lim(0, 20)} suffix={unit} />
+            <NumberField key={`ss${unit}`} id="sbs" label="Each side" value={toU(sb.left)} onChange={(v) => setSb("side", toFt(v))} {...lim(0, 15)} suffix={unit} />
+          </div>
+          <p className="mt-2 text-[12px] leading-snug text-muted">Open space your local body requires on each side. It varies by city and plot size, so copy it from your approved layout or the building bye-laws.{input.setbacks && <> <button type="button" className="font-medium text-cobalt underline" onClick={() => setInput((i) => ({ ...i, setbacks: undefined }))}>Use typical values</button></>}</p>
+        </details>
         <div className="mt-4">
           <p className="text-[13px] font-semibold text-ink">Road on the</p>
           <div className="mt-1"><Segmented full label="Plot facing" value={input.facing} onChange={(v) => set("facing", v)} options={facingOpts} /></div>
@@ -98,7 +125,7 @@ export default function Designer() {
           <div className="mt-1"><Segmented full label="Second road" value={input.corner ?? "none"} onChange={(v) => set("corner", v === "none" ? undefined : (v as Facing))}
             options={[{ value: "none", label: "No" }, ...(["N", "E", "S", "W"] as Facing[]).filter((f) => f !== input.facing && f !== ({ N: "S", S: "N", E: "W", W: "E" } as const)[input.facing]).map((f) => ({ value: f, label: `Road on ${f}` }))]} /></div>
         </div>
-        <p className="mt-5 text-[12.5px] leading-relaxed text-muted">Every change redraws the plan. Three options are ranked by Vastu and livability together.</p>
+        <p className="mt-5 text-[12.5px] leading-relaxed text-muted">Every change redraws the plan. Three options are ranked by Vastu and livability together. Concept plans only, see the <Link to="/legal" className="text-cobalt">terms</Link>.</p>
         <div className="mt-8"><Ideas input={input} design={d} onApply={(p) => setInput((i) => ({ ...i, ...p }))} /></div>
       </aside>
 
@@ -140,6 +167,7 @@ export default function Designer() {
           <div className="ml-auto flex gap-1">
             <button onClick={share} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] font-semibold text-ink hover:bg-ink/5"><Link2 className="size-4" />{copied ? "Link copied" : "Share"}</button>
             <button onClick={download} disabled={!d} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] font-semibold text-ink hover:bg-ink/5"><Download className="size-4" />Drawing</button>
+            <FeedbackButton plan={inputToQuery(input)} />
             <button onClick={() => window.print()} disabled={!d} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] font-semibold text-ink hover:bg-ink/5"><Printer className="size-4" />Print or PDF</button>
           </div>
         </div>
@@ -166,7 +194,7 @@ export default function Designer() {
       {/* Print layout */}
       {d && (
         <div className="hidden print:block">
-          <h1 className="text-2xl">{input.bhk}BHK on a {input.plotWidth} × {input.plotDepth} ft {({ N: "north", E: "east", S: "south", W: "west" })[input.facing]}-facing plot, option {d.id}</h1>
+          <h1 className="text-2xl">{input.bhk}BHK on a {toU(input.plotWidth)} × {toU(input.plotDepth)} {unit} {({ N: "north", E: "east", S: "south", W: "west" })[input.facing]}-facing plot, option {d.id}</h1>
           {d.floors.map((f) => <div key={f.level} className="print-page"><h2 className="mt-4 text-lg">{f.name}</h2><div dangerouslySetInnerHTML={{ __html: renderPlanSvg(d, f, { furniture: true, dims: true, services: true, columns: true }) }} /></div>)}
           <Report design={d} />
           <BuildPanel design={d} />
